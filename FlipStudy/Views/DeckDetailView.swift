@@ -8,6 +8,7 @@ struct DeckDetailView: View {
     @State private var editorCard: Card?
     @State private var showingNewCard = false
     @State private var showingStudy = false
+    @State private var showingEditDeck = false
 
     private var sortedCards: [Card] {
         deck.cards.sorted { $0.leitnerBox != $1.leitnerBox ? $0.leitnerBox < $1.leitnerBox : $0.front < $1.front }
@@ -60,9 +61,23 @@ struct DeckDetailView: View {
                     Label("Add Card", systemImage: "plus")
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        showingEditDeck = true
+                    } label: {
+                        Label("Edit Deck", systemImage: "pencil")
+                    }
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+            }
         }
         .sheet(isPresented: $showingNewCard) {
             CardEditorView(deck: deck, card: nil)
+        }
+        .sheet(isPresented: $showingEditDeck) {
+            CreateDeckView(deck: deck)
         }
         .sheet(item: $editorCard) { card in
             CardEditorView(deck: deck, card: card)
