@@ -5,6 +5,7 @@ struct HomeView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
     @State private var showingNewDeck = false
+    @State private var showingPhotoDeck = false
 
     var body: some View {
         NavigationStack {
@@ -15,8 +16,8 @@ struct HomeView: View {
                     } description: {
                         Text("Make your first deck and add some cards to start studying.")
                     } actions: {
-                        Button {
-                            showingNewDeck = true
+                        Menu {
+                            newDeckMenuItems
                         } label: {
                             Label("New Deck", systemImage: "plus")
                         }
@@ -39,8 +40,8 @@ struct HomeView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingNewDeck = true
+                    Menu {
+                        newDeckMenuItems
                     } label: {
                         Label("New Deck", systemImage: "plus")
                     }
@@ -49,6 +50,23 @@ struct HomeView: View {
             .sheet(isPresented: $showingNewDeck) {
                 CreateDeckView()
             }
+            .sheet(isPresented: $showingPhotoDeck) {
+                PhotoDeckView()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var newDeckMenuItems: some View {
+        Button {
+            showingPhotoDeck = true
+        } label: {
+            Label("Scan a Page", systemImage: "doc.viewfinder")
+        }
+        Button {
+            showingNewDeck = true
+        } label: {
+            Label("Blank Deck", systemImage: "square.and.pencil")
         }
     }
 
