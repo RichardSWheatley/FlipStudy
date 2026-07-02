@@ -6,6 +6,7 @@ struct HomeView: View {
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
     @State private var showingNewDeck = false
     @State private var showingPhotoDeck = false
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
@@ -39,6 +40,13 @@ struct HomeView: View {
                 DeckDetailView(deck: deck)
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         newDeckMenuItems
@@ -52,6 +60,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingPhotoDeck) {
                 PhotoDeckView()
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
             }
         }
     }
