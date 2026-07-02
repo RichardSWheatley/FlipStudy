@@ -98,7 +98,7 @@ enum AnswerLanguage: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .english: "English (no translation)"
+        case .english: "English"
         case .italian: "Italian"
         case .spanish: "Spanish"
         case .french: "French"
@@ -128,12 +128,38 @@ enum AnswerLanguage: String, CaseIterable, Identifiable {
     var locale: Locale.Language { Locale.Language(identifier: code) }
 }
 
+/// Whether a generated deck should be single vocabulary words or full phrases.
+/// The choice is explicit (a picker) rather than guessed from the topic, and it
+/// is enforced by a hard word-count filter so "Phrases" never yields lone words.
+enum DeckStyle: String, CaseIterable, Identifiable {
+    case words, phrases
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .words: "Single words"
+        case .phrases: "Phrases & sentences"
+        }
+    }
+
+    /// True if `text` fits this style. Phrases must be more than one word.
+    func accepts(_ text: String) -> Bool {
+        let wordCount = text.split { $0 == " " || $0 == "\n" || $0 == "\t" }.count
+        switch self {
+        case .words: return wordCount >= 1
+        case .phrases: return wordCount >= 2
+        }
+    }
+}
+
 /// Cloud translation over a REST API (Google v2 or Microsoft Translator 3.0).
-/// The key is the parent's own; nothing is proxied through us. English is the
-/// fixed source language, matching the rest of the app.
+/// The key is the parent's own; nothing is proxied through us. The source and
+/// target languages are both chosen by the user (front → back).
 struct CloudTranslator: Translator {
     let provider: TranslationProvider
     let apiKey: String
+    let source: AnswerLanguage
     let target: AnswerLanguage
 
     func translate(_ texts: [String]) async throws -> [String] {
@@ -162,7 +188,7 @@ struct CloudTranslator: Translator {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let body: [String: Any] = [
             "q": texts,
-            "source": "en",
+            "source": source.code,
             "target": target.code,
             "format": "text"
         ]
@@ -185,7 +211,7 @@ struct CloudTranslator: Translator {
         var components = URLComponents(string: "https://api.cognitive.microsofttranslator.com/translate")!
         components.queryItems = [
             URLQueryItem(name: "api-version", value: "3.0"),
-            URLQueryItem(name: "from", value: "en"),
+            URLQueryItem(name: "from", value: source.code),
             URLQueryItem(name: "to", value: target.code)
         ]
         guard let url = components.url else { throw CloudTranslationError.badResponse }

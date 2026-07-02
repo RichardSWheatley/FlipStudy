@@ -78,11 +78,14 @@ struct HomeView: View {
         } label: {
             Label("Type a Subject", systemImage: "sparkles")
         }
-        Button {
-            showingPhotoDeck = true
-        } label: {
-            Label("Scan a Page", systemImage: "doc.viewfinder")
-        }
+        // "Scan a Page" is hidden for now while the photo path is reworked. The
+        // PhotoDeckView code and its sheet below stay in the repo; re-add this
+        // button to bring the option back.
+        // Button {
+        //     showingPhotoDeck = true
+        // } label: {
+        //     Label("Scan a Page", systemImage: "doc.viewfinder")
+        // }
         Button {
             showingNewDeck = true
         } label: {

@@ -4,7 +4,14 @@ import PhotosUI
 import VisionKit
 
 /// Create a deck by scanning a page (device camera) or picking a photo, running
-/// on-device OCR, then turning the recognized text into draft cards.
+/// on-device OCR, then turning the recognized text into draft cards with a
+/// simple "Term: definition" line splitter. The cards are a preview the user
+/// reviews and edits before the deck is created.
+///
+/// NOTE: An AI-based extractor (`AICardGenerator.makeCards(fromText:)`) exists in
+/// the repo and can read arbitrary page content into question/answer cards, but
+/// it's disabled here for now because its choices were unreliable. To re-enable,
+/// call it from `generateCards()` (see the commented path there).
 struct PhotoDeckView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -15,13 +22,18 @@ struct PhotoDeckView: View {
     @State private var isRecognizing = false
     @State private var showScanner = false
     @State private var errorMessage: String?
+    @State private var draftCards: [(front: String, back: String)] = []
 
     private var trimmedTitle: String {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var draftCards: [(front: String, back: String)] {
-        CardGenerator.cards(from: extractedText)
+    private var trimmedText: String {
+        extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canGenerate: Bool {
+        !trimmedText.isEmpty && !isRecognizing
     }
 
     private var canCreate: Bool {
@@ -49,7 +61,7 @@ struct PhotoDeckView: View {
                 } header: {
                     Text("Capture")
                 } footer: {
-                    Text("Text is read on your device. Put one term per line — use \"Term: definition\" or \"Term — definition\" to split front and back.")
+                    Text(captureFootnote)
                 }
 
                 if isRecognizing {
@@ -69,14 +81,27 @@ struct PhotoDeckView: View {
                     }
                 }
 
-                Section("Recognized Text") {
-                    TextEditor(text: $extractedText)
-                        .frame(minHeight: 140)
-                        .font(.body)
+                if !trimmedText.isEmpty || isRecognizing {
+                    Section {
+                        TextEditor(text: $extractedText)
+                            .frame(minHeight: 140)
+                            .font(.body)
+                        Button {
+                            generateCards()
+                        } label: {
+                            Label(draftCards.isEmpty ? "Make Cards" : "Redo Cards",
+                                  systemImage: "rectangle.stack.badge.plus")
+                        }
+                        .disabled(!canGenerate)
+                    } header: {
+                        Text("Recognized Text")
+                    } footer: {
+                        Text("Cards are split line-by-line. Use \"Term: definition\" or \"Term — definition\" to split front and back. Edit the text above and redo if needed.")
+                    }
                 }
 
                 if !draftCards.isEmpty {
-                    Section("Preview (\(draftCards.count))") {
+                    Section {
                         ForEach(Array(draftCards.enumerated()), id: \.offset) { _, card in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(card.front)
@@ -88,6 +113,10 @@ struct PhotoDeckView: View {
                                 }
                             }
                         }
+                    } header: {
+                        Text("Preview (\(draftCards.count))")
+                    } footer: {
+                        Text("Review each card before creating the deck.")
                     }
                 }
             }
@@ -131,6 +160,10 @@ struct PhotoDeckView: View {
         }
     }
 
+    private var captureFootnote: String {
+        "Text is read on your device — nothing leaves your phone. Each line becomes a card you can review and edit."
+    }
+
     private func recognize(images: [UIImage]) {
         guard !images.isEmpty else { return }
         errorMessage = nil
@@ -146,6 +179,9 @@ struct PhotoDeckView: View {
             }
             append(lines: lines)
             isRecognizing = false
+            if !trimmedText.isEmpty {
+                generateCards()
+            }
         }
     }
 
@@ -156,6 +192,31 @@ struct PhotoDeckView: View {
             extractedText = joined
         } else {
             extractedText += "\n" + joined
+        }
+    }
+
+    // MARK: - Card extraction
+
+    /// Turn the recognized text into draft cards with the deterministic line
+    /// splitter.
+    ///
+    /// AI extraction is intentionally disabled for now — its card choices were
+    /// unreliable. The code still lives in `AICardGenerator.makeCards(fromText:)`.
+    /// To bring it back, replace the body below with something like:
+    ///
+    ///     isGenerating = true
+    ///     Task {
+    ///         do { draftCards = try await AICardGenerator.makeCards(fromText: text) }
+    ///         catch { draftCards = CardGenerator.cards(from: text) }
+    ///         isGenerating = false
+    ///     }
+    private func generateCards() {
+        let text = trimmedText
+        guard !text.isEmpty else { return }
+        errorMessage = nil
+        draftCards = CardGenerator.cards(from: text)
+        if draftCards.isEmpty {
+            errorMessage = "Couldn't find any cards in that text."
         }
     }
 
