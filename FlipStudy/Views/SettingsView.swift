@@ -9,6 +9,10 @@ struct SettingsView: View {
     @Query private var settingsList: [AppSettings]
 
     @State private var showingParentGate = false
+    /// What to do once the grown-up gate is passed — enabling Cloud AI, or
+    /// selecting a specific cloud engine.
+    @State private var pendingUnlock: (() -> Void)?
+    @State private var apiKey = ""
 
     private var settings: AppSettings? { settingsList.first }
 
@@ -21,6 +25,26 @@ struct SettingsView: View {
                     Text("AI Card Generation")
                 } footer: {
                     Text("On-device AI is always free and private. Cloud AI can make richer cards, but it sends the topic you type to an online service. A grown-up has to turn this on.")
+                }
+
+                Section {
+                    Picker("Engine", selection: providerBinding) {
+                        ForEach(TranslationProvider.allCases) { provider in
+                            Text(provider.label).tag(provider)
+                        }
+                    }
+                    if selectedProvider.isCloud {
+                        SecureField("API key", text: $apiKey)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .onChange(of: apiKey) { _, newValue in
+                                CloudTranslationKey.save(newValue)
+                            }
+                    }
+                } header: {
+                    Text("Translation Engine")
+                } footer: {
+                    Text(selectedProvider.footnote)
                 }
 
                 Section("About") {
@@ -36,11 +60,40 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingParentGate) {
                 ParentGateView {
-                    settings?.cloudAIEnabled = true
+                    pendingUnlock?()
+                    pendingUnlock = nil
                 }
             }
-            .onAppear(perform: ensureSettings)
+            .onAppear {
+                ensureSettings()
+                apiKey = CloudTranslationKey.read()
+            }
         }
+    }
+
+    private var selectedProvider: TranslationProvider {
+        settings?.translationProvider ?? .apple
+    }
+
+    /// Selecting a cloud engine requires Cloud AI to be on. If it isn't, picking
+    /// a cloud engine opens the grown-up gate, which both enables Cloud AI and
+    /// sets the engine once passed.
+    private var providerBinding: Binding<TranslationProvider> {
+        Binding(
+            get: { selectedProvider },
+            set: { newValue in
+                guard let settings else { return }
+                if newValue.isCloud && !settings.cloudAIEnabled {
+                    pendingUnlock = {
+                        settings.cloudAIEnabled = true
+                        settings.translationProvider = newValue
+                    }
+                    showingParentGate = true
+                } else {
+                    settings.translationProvider = newValue
+                }
+            }
+        )
     }
 
     /// Reflects the stored flag, but flipping it ON only opens the parent gate —
@@ -50,9 +103,12 @@ struct SettingsView: View {
             get: { settings?.cloudAIEnabled ?? false },
             set: { newValue in
                 if newValue {
+                    pendingUnlock = { settings?.cloudAIEnabled = true }
                     showingParentGate = true
                 } else {
                     settings?.cloudAIEnabled = false
+                    // Fall back to the free on-device engine when cloud is off.
+                    settings?.translationProvider = .apple
                 }
             }
         )
