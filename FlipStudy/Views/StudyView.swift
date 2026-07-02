@@ -10,6 +10,7 @@ struct StudyView: View {
     @State private var showingBack = false
     @State private var correctCount = 0
     @State private var includeAll = false
+    @State private var showingAddCard = false
 
     var body: some View {
         NavigationStack {
@@ -45,6 +46,21 @@ struct StudyView: View {
             }
         }
         .onAppear(perform: buildQueue)
+        .sheet(isPresented: $showingAddCard, onDismiss: buildQueue) {
+            CardEditorView(deck: deck, card: nil)
+        }
+    }
+
+    /// Add-a-card button shown on the "finished" screens so a new card (with
+    /// optional AI translation) can be made without leaving the study session.
+    private var addCardButton: some View {
+        Button {
+            showingAddCard = true
+        } label: {
+            Label("Add a Card", systemImage: "sparkles")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
     }
 
     private func reviewing(card: Card) -> some View {
@@ -118,6 +134,8 @@ struct StudyView: View {
                 }
                 .buttonStyle(.borderedProminent)
 
+                addCardButton
+
                 Button("Done") { dismiss() }
                     .buttonStyle(.bordered)
             }
@@ -153,6 +171,8 @@ struct StudyView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+
+                addCardButton
 
                 Button("Done") { dismiss() }
                     .buttonStyle(.bordered)
