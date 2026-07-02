@@ -22,6 +22,7 @@ struct CardEditorView: View {
     @State private var targetLanguage: AnswerLanguage = .italian
     @State private var isTranslating = false
     @State private var errorMessage: String?
+    @State private var speech = SpeechPlayer()
 
     // Apple's translator vends its session through `.translationTask`; a config
     // is set to kick a translation off and invalidated to re-run the same pair.
@@ -65,6 +66,20 @@ struct CardEditorView: View {
                 Section("Back") {
                     TextField("Answer or translation", text: $back, axis: .vertical)
                         .lineLimit(2...6)
+                    if !back.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Button {
+                            if speech.isSpeaking {
+                                speech.stop()
+                            } else {
+                                speech.speak(back, hint: targetLanguage)
+                            }
+                        } label: {
+                            Label(
+                                speech.isSpeaking ? "Stop" : "Listen",
+                                systemImage: speech.isSpeaking ? "stop.fill" : "speaker.wave.2.fill"
+                            )
+                        }
+                    }
                 }
 
                 Section {
@@ -117,6 +132,7 @@ struct CardEditorView: View {
                     back = card.back
                 }
             }
+            .onDisappear { speech.stop() }
         }
     }
 

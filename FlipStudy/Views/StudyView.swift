@@ -11,6 +11,7 @@ struct StudyView: View {
     @State private var correctCount = 0
     @State private var includeAll = false
     @State private var showingAddCard = false
+    @State private var speech = SpeechPlayer()
 
     var body: some View {
         NavigationStack {
@@ -69,6 +70,7 @@ struct StudyView: View {
 
             FlipCard(card: card, showingBack: showingBack)
                 .onTapGesture {
+                    if showingBack { speech.stop() }
                     withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
                         showingBack.toggle()
                     }
@@ -77,19 +79,23 @@ struct StudyView: View {
             Spacer()
 
             if showingBack {
-                HStack(spacing: 16) {
-                    answerButton(
-                        title: "Missed it",
-                        systemImage: "xmark",
-                        tint: .red,
-                        action: { advance(correct: false) }
-                    )
-                    answerButton(
-                        title: "Got it",
-                        systemImage: "checkmark",
-                        tint: .green,
-                        action: { advance(correct: true) }
-                    )
+                VStack(spacing: 16) {
+                    listenButton(for: card)
+
+                    HStack(spacing: 16) {
+                        answerButton(
+                            title: "Missed it",
+                            systemImage: "xmark",
+                            tint: .red,
+                            action: { advance(correct: false) }
+                        )
+                        answerButton(
+                            title: "Got it",
+                            systemImage: "checkmark",
+                            tint: .green,
+                            action: { advance(correct: true) }
+                        )
+                    }
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             } else {
@@ -100,6 +106,26 @@ struct StudyView: View {
             }
         }
         .padding()
+    }
+
+    /// Speaker button that reads the answer aloud in its own language (Italian,
+    /// Spanish, …) rather than an English voice. Tapping again stops playback.
+    private func listenButton(for card: Card) -> some View {
+        Button {
+            if speech.isSpeaking {
+                speech.stop()
+            } else {
+                speech.speak(card.back)
+            }
+        } label: {
+            Label(
+                speech.isSpeaking ? "Stop" : "Listen",
+                systemImage: speech.isSpeaking ? "stop.fill" : "speaker.wave.2.fill"
+            )
+            .font(.subheadline.weight(.semibold))
+        }
+        .buttonStyle(.bordered)
+        .tint(.accentColor)
     }
 
     private func answerButton(title: String, systemImage: String, tint: Color, action: @escaping () -> Void) -> some View {
@@ -185,6 +211,7 @@ struct StudyView: View {
 
     private func advance(correct: Bool) {
         guard index < queue.count else { return }
+        speech.stop()
         let card = queue[index]
         if correct {
             card.markCorrect()
