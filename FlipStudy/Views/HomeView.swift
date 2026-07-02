@@ -6,6 +6,7 @@ struct HomeView: View {
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
     @State private var showingNewDeck = false
     @State private var showingPhotoDeck = false
+    @State private var showingSubjectDeck = false
     @State private var showingSettings = false
 
     var body: some View {
@@ -61,6 +62,9 @@ struct HomeView: View {
             .sheet(isPresented: $showingPhotoDeck) {
                 PhotoDeckView()
             }
+            .sheet(isPresented: $showingSubjectDeck) {
+                TypeSubjectView()
+            }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
@@ -69,6 +73,11 @@ struct HomeView: View {
 
     @ViewBuilder
     private var newDeckMenuItems: some View {
+        Button {
+            showingSubjectDeck = true
+        } label: {
+            Label("Type a Subject", systemImage: "sparkles")
+        }
         Button {
             showingPhotoDeck = true
         } label: {
