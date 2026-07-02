@@ -179,9 +179,10 @@ private struct FlipCard: View {
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(.secondary)
                     Text(text)
-                        .font(.title3.weight(.semibold))
+                        .font(.system(size: 34, weight: .semibold))
                         .multilineTextAlignment(.center)
-                        .minimumScaleFactor(0.5)
+                        .lineLimit(6)
+                        .minimumScaleFactor(0.35)
                 }
                 .padding(28)
             }
