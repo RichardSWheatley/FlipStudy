@@ -67,6 +67,12 @@ struct AppleTranslator: Translator {
     let session: TranslationSession
 
     func translate(_ texts: [String]) async throws -> [String] {
+        guard !texts.isEmpty else { return [] }
+        // On first use of a language pair the model may not be downloaded yet.
+        // Preparing the session triggers the system's download flow so the
+        // translation actually runs instead of failing with "unable to translate".
+        try await session.prepareTranslation()
+
         let requests = texts.enumerated().map {
             TranslationSession.Request(sourceText: $0.element, clientIdentifier: String($0.offset))
         }
