@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		100000000000000000000A5 /* FlipStudy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FlipStudy.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		100000000000000000000A5 /* FlipStudy: Flashcards.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "FlipStudy: Flashcards.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -36,7 +36,7 @@
 		100000000000000000000A2 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				100000000000000000000A5 /* FlipStudy.app */,
+				100000000000000000000A5 /* FlipStudy: Flashcards.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,7 +61,7 @@
 			);
 			name = FlipStudy;
 			productName = FlipStudy;
-			productReference = 100000000000000000000A5 /* FlipStudy.app */;
+			productReference = 100000000000000000000A5 /* FlipStudy: Flashcards.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -244,6 +244,7 @@
 				DEVELOPMENT_TEAM = 2X96YGT8DD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "FlipStudy reads text from photos you choose to create study cards.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -257,7 +258,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipstudy.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "FlipStudy: Flashcards";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -274,6 +275,7 @@
 				DEVELOPMENT_TEAM = 2X96YGT8DD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "FlipStudy reads text from photos you choose to create study cards.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -287,7 +289,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipstudy.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "FlipStudy: Flashcards";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
