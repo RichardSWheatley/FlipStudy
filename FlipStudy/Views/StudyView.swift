@@ -9,16 +9,19 @@ struct StudyView: View {
     @State private var index = 0
     @State private var showingBack = false
     @State private var correctCount = 0
+    @State private var includeAll = false
 
     var body: some View {
         NavigationStack {
             Group {
-                if queue.isEmpty {
+                if deck.cards.isEmpty {
                     ContentUnavailableView(
                         "Nothing to Study",
                         systemImage: "checkmark.circle",
                         description: Text("This deck has no cards yet.")
                     )
+                } else if queue.isEmpty {
+                    caughtUp
                 } else if index >= queue.count {
                     summary
                 } else {
@@ -94,6 +97,44 @@ struct StudyView: View {
         .tint(tint)
     }
 
+    private var caughtUp: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(.tint)
+            Text("All Caught Up")
+                .font(.title2.bold())
+            Text(nextDueMessage)
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            VStack(spacing: 12) {
+                Button {
+                    includeAll = true
+                    buildQueue()
+                } label: {
+                    Label("Study All Anyway", systemImage: "rectangle.stack")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Done") { dismiss() }
+                    .buttonStyle(.bordered)
+            }
+            .padding(.top, 8)
+            .padding(.horizontal, 40)
+        }
+        .padding()
+    }
+
+    private var nextDueMessage: String {
+        guard let next = deck.cards.compactMap(\.nextDue).min() else {
+            return "Nothing is due right now."
+        }
+        let formatted = next.formatted(.relative(presentation: .named))
+        return "No cards are due. The next one is ready \(formatted)."
+    }
+
     private var summary: some View {
         VStack(spacing: 16) {
             Image(systemName: "party.popper.fill")
@@ -138,11 +179,12 @@ struct StudyView: View {
     }
 
     private func buildQueue() {
-        // Lower Leitner boxes first (those need the most practice).
-        let cards = deck.cards.sorted {
+        // Study only cards that are due, unless the user opted to drill the
+        // whole deck. Lower Leitner boxes first (those need the most practice).
+        let pool = includeAll ? deck.cards : deck.cards.filter(\.isDue)
+        queue = pool.sorted {
             $0.leitnerBox != $1.leitnerBox ? $0.leitnerBox < $1.leitnerBox : $0.front < $1.front
         }
-        queue = cards
         index = 0
         showingBack = false
         correctCount = 0
