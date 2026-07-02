@@ -22,6 +22,16 @@ enum AICardGenerator {
         var cards: [DraftCard]
     }
 
+    /// A list of English vocabulary terms for a topic. Used for language decks:
+    /// the model only supplies the English side, and Apple's translator fills in
+    /// the answer language, so the vocabulary matches a real translation engine
+    /// rather than the model's own (sometimes off) word choices.
+    @Generable
+    struct TermList {
+        @Guide(description: "Short English words or phrases for this topic, each 1-3 words, no translations")
+        var terms: [String]
+    }
+
     enum GenerationError: LocalizedError {
         case deviceNotEligible
         case appleIntelligenceNotEnabled
@@ -63,10 +73,12 @@ enum AICardGenerator {
         }
     }
 
-    static func makeCards(topic: String, count: Int = 12) async throws -> [(front: String, back: String)] {
+    /// Throws the matching `GenerationError` if the on-device model can't run,
+    /// so each entry point shares one availability gate.
+    private static func requireAvailable() throws {
         switch SystemLanguageModel.default.availability {
         case .available:
-            break
+            return
         case .unavailable(.deviceNotEligible):
             throw GenerationError.deviceNotEligible
         case .unavailable(.appleIntelligenceNotEnabled):
@@ -76,6 +88,10 @@ enum AICardGenerator {
         case .unavailable:
             throw GenerationError.modelNotReady
         }
+    }
+
+    static func makeCards(topic: String, count: Int = 12) async throws -> [(front: String, back: String)] {
+        try requireAvailable()
 
         let session = LanguageModelSession(instructions: instructions)
         let prompt = """
@@ -93,9 +109,38 @@ enum AICardGenerator {
         return cards
     }
 
+    /// Produce a list of English vocabulary terms for a topic. The model only
+    /// supplies English; a `Translator` fills in the answer language afterward,
+    /// so a language deck's word choices come from a real translation engine.
+    static func makeEnglishTerms(topic: String, count: Int = 12) async throws -> [String] {
+        try requireAvailable()
+
+        let session = LanguageModelSession(instructions: termInstructions)
+        let prompt = """
+        List \(count) common English vocabulary words or short phrases about: \(topic).
+        Give only the English terms — no translations, no numbering, no definitions. \
+        Prefer everyday words a beginner would learn first.
+        """
+        let response = try await session.respond(to: prompt, generating: TermList.self)
+
+        var seen = Set<String>()
+        let terms = response.content.terms
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .filter { seen.insert($0.lowercased()).inserted }
+        guard !terms.isEmpty else { throw GenerationError.empty }
+        return terms
+    }
+
     private static let instructions = """
     You are a helpful study assistant that writes clear, accurate flashcards.
     Fronts are brief terms or questions. Backs are short, correct answers or
     definitions. Avoid trick questions and keep the language age-appropriate.
+    """
+
+    private static let termInstructions = """
+    You build vocabulary word lists for language learners. Return only English
+    words or short phrases relevant to the topic, ordered from most common to
+    least. No translations, no numbering, no punctuation — just the terms.
     """
 }
