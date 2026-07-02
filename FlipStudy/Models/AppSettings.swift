@@ -11,7 +11,9 @@ final class AppSettings {
 
     /// Raw value of the selected `TranslationProvider`. Apple's on-device engine
     /// is the default; cloud engines require `cloudAIEnabled` and an API key.
-    var translationProviderRaw: String
+    /// The declaration default is required so SwiftData can backfill existing
+    /// rows when migrating a store made before this property existed.
+    var translationProviderRaw: String = TranslationProvider.apple.rawValue
 
     var translationProvider: TranslationProvider {
         get { TranslationProvider(rawValue: translationProviderRaw) ?? .apple }
