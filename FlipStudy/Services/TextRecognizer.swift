@@ -1,5 +1,5 @@
 import Foundation
-import Vision
+@preconcurrency import Vision
 import UIKit
 
 /// Runs on-device text recognition (OCR) over an image using the Vision framework.

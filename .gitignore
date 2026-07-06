@@ -28,3 +28,6 @@ xcuserdata/
 *.dSYM
 timeline.xctimeline
 playground.xcworkspace
+
+# Xcode archive export output
+FlipStudy [0-9]*-[0-9]*/
