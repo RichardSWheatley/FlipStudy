@@ -157,9 +157,35 @@ enum AICardGenerator {
     static func makeConcepts(topic: String, style: DeckStyle, count: Int = 12) async throws -> [String] {
         try requireAvailable()
 
-        let styleLine = style == .phrases
-            ? "Each item MUST be a complete, natural English phrase or sentence of several words — never a single word."
-            : "Each item is a single English word or a very short term."
+        let styleLine: String
+        let example: String
+        switch style {
+        case .phrases:
+            styleLine = "Each item MUST be a complete, natural English phrase or sentence of several words — never a single word."
+            example = """
+            Where is the bathroom?
+            How much does this cost?
+            I would like a coffee, please.
+            Can you help me?
+            """
+        case .words:
+            styleLine = "Each item is a single English word or a very short term."
+            example = """
+            water
+            train station
+            thank you
+            expensive
+            """
+        case .sentenceStarters:
+            styleLine = "Each item MUST be a short English SENTENCE OPENER — the first few words a sentence commonly begins with, left unfinished so the learner can complete it. Two to four words each. Do NOT write complete sentences."
+            example = """
+            I would like
+            Can you tell me
+            I'm trying to
+            Do you know where
+            """
+        }
+
         let session = LanguageModelSession(instructions: conceptInstructions)
         let prompt = """
         Study topic: \(topic)
@@ -170,10 +196,7 @@ enum AICardGenerator {
 
         Worked example — topic "Italian phrases for tourists". Correct English \
         output (English even though the topic is about Italian):
-        Where is the bathroom?
-        How much does this cost?
-        I would like a coffee, please.
-        Can you help me?
+        \(example)
 
         Now list the \(count) English items for the topic above. No numbering, no \
         translations, no notes — English only.
@@ -181,12 +204,27 @@ enum AICardGenerator {
         let response = try await session.respond(to: prompt, generating: TermList.self)
 
         var seen = Set<String>()
-        let items = response.content.terms
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .filter { isProbablyEnglish($0) }
-            .filter { style.accepts($0) }
-            .filter { seen.insert($0.lowercased()).inserted }
+        var items: [String] = []
+
+        // Sentence-starter decks always begin from the same reliable basics
+        // (the same list for every language), then the model's suggestions are
+        // appended so each deck also gets some topic-flavoured openers.
+        if style == .sentenceStarters {
+            for starter in DeckStyle.basicStarters where seen.insert(starter.lowercased()).inserted {
+                items.append(starter)
+            }
+        }
+
+        for term in response.content.terms {
+            let cleaned = term.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty,
+                  isProbablyEnglish(cleaned),
+                  style.accepts(cleaned),
+                  seen.insert(cleaned.lowercased()).inserted
+            else { continue }
+            items.append(cleaned)
+        }
+
         guard !items.isEmpty else { throw GenerationError.empty }
         return items
     }

@@ -132,7 +132,7 @@ enum AnswerLanguage: String, CaseIterable, Identifiable {
 /// The choice is explicit (a picker) rather than guessed from the topic, and it
 /// is enforced by a hard word-count filter so "Phrases" never yields lone words.
 enum DeckStyle: String, CaseIterable, Identifiable {
-    case words, phrases
+    case words, phrases, sentenceStarters
 
     var id: String { rawValue }
 
@@ -140,17 +140,46 @@ enum DeckStyle: String, CaseIterable, Identifiable {
         switch self {
         case .words: "Single words"
         case .phrases: "Phrases & sentences"
+        case .sentenceStarters: "Sentence starters"
         }
     }
 
-    /// True if `text` fits this style. Phrases must be more than one word.
+    /// True if `text` fits this style. Phrases and starters must be more than one
+    /// word (a lone word can't be a sentence opener).
     func accepts(_ text: String) -> Bool {
         let wordCount = text.split { $0 == " " || $0 == "\n" || $0 == "\t" }.count
         switch self {
         case .words: return wordCount >= 1
-        case .phrases: return wordCount >= 2
+        case .phrases, .sentenceStarters: return wordCount >= 2
         }
     }
+
+    /// A fixed set of the most common English sentence openers. These are the
+    /// same for every language — they're written in English and the translator
+    /// turns them into the target language — so every "sentence starters" deck
+    /// begins from the same reliable basics before the AI adds more.
+    static let basicStarters: [String] = [
+        "I want",
+        "I need",
+        "I would like",
+        "I have",
+        "I am",
+        "I don't",
+        "I can",
+        "I like",
+        "Can you",
+        "Could you",
+        "Do you have",
+        "Where is",
+        "How much is",
+        "I would like to",
+        "Is there",
+        "There is",
+        "I'm looking for",
+        "May I have",
+        "How do I",
+        "What time is"
+    ]
 }
 
 /// Cloud translation over a REST API (Google v2 or Microsoft Translator 3.0).
