@@ -12,6 +12,8 @@ struct StudyView: View {
     @State private var includeAll = false
     @State private var showingAddCard = false
     @State private var speech = SpeechPlayer()
+    @State private var reminders = RemindersService()
+    @State private var showingReminder = false
 
     var body: some View {
         NavigationStack {
@@ -50,6 +52,36 @@ struct StudyView: View {
         .sheet(isPresented: $showingAddCard, onDismiss: buildQueue) {
             CardEditorView(deck: deck, card: nil)
         }
+        .sheet(isPresented: $showingReminder) {
+            StudyReminderSheet(
+                deckTitle: deck.title,
+                suggestedDate: suggestedReminderDate,
+                service: reminders
+            )
+        }
+    }
+
+    /// A sensible default time for a study reminder: the deck's earliest future
+    /// due date if there is one, otherwise tomorrow at 9am.
+    private var suggestedReminderDate: Date {
+        if let soonest = deck.cards.compactMap(\.nextDue).filter({ $0 > .now }).min() {
+            return soonest
+        }
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
+        return Calendar.current.date(
+            bySettingHour: 9, minute: 0, second: 0, of: tomorrow
+        ) ?? tomorrow
+    }
+
+    /// Button shown on the finished screens to schedule a study reminder.
+    private var remindButton: some View {
+        Button {
+            showingReminder = true
+        } label: {
+            Label("Remind Me to Study", systemImage: "bell")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
     }
 
     /// Add-a-card button shown on the "finished" screens so a new card (with
@@ -162,6 +194,8 @@ struct StudyView: View {
 
                 addCardButton
 
+                remindButton
+
                 Button("Done") { dismiss() }
                     .buttonStyle(.bordered)
             }
@@ -199,6 +233,8 @@ struct StudyView: View {
                 .buttonStyle(.borderedProminent)
 
                 addCardButton
+
+                remindButton
 
                 Button("Done") { dismiss() }
                     .buttonStyle(.bordered)
@@ -276,5 +312,90 @@ private struct FlipCard: View {
                 .padding(28)
             }
             .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
+    }
+}
+
+/// Sheet to schedule a study reminder in the system Reminders app. Picking a
+/// time and tapping Set triggers the Reminders permission prompt on first use.
+private struct StudyReminderSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let deckTitle: String
+    let suggestedDate: Date
+    let service: RemindersService
+
+    @State private var date: Date
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @State private var confirmation: String?
+
+    init(deckTitle: String, suggestedDate: Date, service: RemindersService) {
+        self.deckTitle = deckTitle
+        self.suggestedDate = suggestedDate
+        self.service = service
+        _date = State(initialValue: suggestedDate)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let confirmation {
+                    Section {
+                        Label(confirmation, systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                } else {
+                    Section {
+                        DatePicker(
+                            "Remind me",
+                            selection: $date,
+                            in: Date()...,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                    } footer: {
+                        Text("Adds a reminder to your Reminders app so you don't forget to study \(deckTitle).")
+                    }
+
+                    if let errorMessage {
+                        Section {
+                            Text(errorMessage).foregroundStyle(.red)
+                        }
+                    }
+
+                    Section {
+                        Button(action: save) {
+                            HStack {
+                                if isSaving { ProgressView() }
+                                Text(isSaving ? "Setting…" : "Set Reminder")
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isSaving)
+                    }
+                }
+            }
+            .navigationTitle("Study Reminder")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(confirmation == nil ? "Cancel" : "Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func save() {
+        errorMessage = nil
+        isSaving = true
+        let title = "Study \(deckTitle) in FlipStudy"
+        Task {
+            do {
+                let when = try await service.addStudyReminder(title: title, due: date)
+                confirmation = "Reminder set for \(when.formatted(date: .abbreviated, time: .shortened))."
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isSaving = false
+        }
     }
 }
