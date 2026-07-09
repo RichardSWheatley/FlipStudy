@@ -247,6 +247,10 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "FlipStudy reads text from photos you choose to create study cards.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "FlipStudy adds a reminder to your Reminders so you remember to study.";
+				INFOPLIST_KEY_NSRemindersUsageDescription = "FlipStudy adds a reminder to your Reminders so you remember to study.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FlipStudy uses the microphone so you can practice saying your answers out loud.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "FlipStudy uses speech recognition to check the answer you say out loud.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -278,6 +282,10 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "FlipStudy reads text from photos you choose to create study cards.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "FlipStudy adds a reminder to your Reminders so you remember to study.";
+				INFOPLIST_KEY_NSRemindersUsageDescription = "FlipStudy adds a reminder to your Reminders so you remember to study.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FlipStudy uses the microphone so you can practice saying your answers out loud.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "FlipStudy uses speech recognition to check the answer you say out loud.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
