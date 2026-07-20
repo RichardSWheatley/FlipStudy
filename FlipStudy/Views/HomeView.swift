@@ -84,8 +84,10 @@ struct HomeView: View {
                 Label("Type a Subject", systemImage: "sparkles")
             }
         }
-        // "Scan a Page" runs on-device OCR + a rule-based splitter, so it needs
-        // no Apple Intelligence and works on every supported device.
+        // "Scan a Page" runs on-device OCR and then reads the text into cards.
+        // It uses Apple Intelligence to write real question/answer pairs when
+        // available, and falls back to a rule-based splitter otherwise, so it
+        // works on every supported device.
         Button {
             showingPhotoDeck = true
         } label: {
