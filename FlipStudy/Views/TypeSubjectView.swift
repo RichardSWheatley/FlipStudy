@@ -284,7 +284,7 @@ struct TypeSubjectView: View {
             guard let settings, settings.cloudAIEnabled else {
                 throw CloudTranslationError.notEnabled
             }
-            let key = CloudTranslationKey.read()
+            let key = CloudTranslationKey.read(for: provider)
             let region = settings.cloudTranslationRegion
             if baseLanguage != .english {
                 frontResolved = try await CloudTranslator(provider: provider, apiKey: key,

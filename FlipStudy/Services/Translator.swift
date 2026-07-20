@@ -329,13 +329,48 @@ struct CloudTranslator: Translator {
     }
 }
 
-/// Stores the cloud translation API key in the Keychain, keeping it out of the
-/// SwiftData store and backups-in-plaintext. One shared key for the app.
+/// Stores each cloud provider's API key in the Keychain, keeping it out of the
+/// SwiftData store and backups-in-plaintext. Keys are kept **per provider**: a
+/// Google key and a Microsoft key are different secrets, so storing one shared
+/// value meant switching the engine picker silently carried (say) an Azure key
+/// over to Google, which then failed. Each provider now has its own slot.
 enum CloudTranslationKey {
-    private static let account = "cloudTranslationAPIKey"
     private static let service = "com.flipstudy.app.translation"
+    /// The old single-slot account, before keys were split per provider. Kept
+    /// only so an upgrading user's already-entered key can be migrated once.
+    private static let legacyAccount = "cloudTranslationAPIKey"
 
-    static func read() -> String {
+    private static func account(for provider: TranslationProvider) -> String {
+        "cloudTranslationAPIKey.\(provider.rawValue)"
+    }
+
+    static func read(for provider: TranslationProvider) -> String {
+        readRaw(account: account(for: provider))
+    }
+
+    static func save(_ value: String, for provider: TranslationProvider) {
+        // Strip every whitespace character, not just the ends: a stray space or
+        // newline slipped into the middle of a pasted key is invisible behind a
+        // masked field and otherwise causes a mystifying 401.
+        writeRaw(value.filter { !$0.isWhitespace }, account: account(for: provider))
+    }
+
+    /// One-time move of the old single shared key onto the provider that was
+    /// active when it was entered. Without this an upgrading user would lose the
+    /// key they already pasted — and re-pasting a masked key is exactly the pain
+    /// we're trying to end. Safe to call repeatedly; a no-op once migrated.
+    static func migrateLegacyKey(to provider: TranslationProvider) {
+        let legacy = readRaw(account: legacyAccount)
+        guard !legacy.isEmpty else { return }
+        if readRaw(account: account(for: provider)).isEmpty {
+            writeRaw(legacy, account: account(for: provider))
+        }
+        deleteRaw(account: legacyAccount)
+    }
+
+    // MARK: - Keychain primitives
+
+    private static func readRaw(account: String) -> String {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -351,20 +386,25 @@ enum CloudTranslationKey {
         return value
     }
 
-    static func save(_ value: String) {
-        // Strip every whitespace character, not just the ends: a stray space or
-        // newline slipped into the middle of a pasted key is invisible behind a
-        // masked field and otherwise causes a mystifying 401.
-        let trimmed = value.filter { !$0.isWhitespace }
+    private static func writeRaw(_ value: String, account: String) {
         let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
         SecItemDelete(base as CFDictionary)
-        guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return }
+        guard !value.isEmpty, let data = value.data(using: .utf8) else { return }
         var attributes = base
         attributes[kSecValueData as String] = data
         SecItemAdd(attributes as CFDictionary, nil)
+    }
+
+    private static func deleteRaw(account: String) {
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(base as CFDictionary)
     }
 }

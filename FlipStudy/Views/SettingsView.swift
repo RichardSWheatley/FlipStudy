@@ -64,7 +64,7 @@ struct SettingsView: View {
                             .textContentType(.none)
                             .font(.body.monospaced())
                             .onChange(of: apiKey) { _, newValue in
-                                CloudTranslationKey.save(newValue)
+                                CloudTranslationKey.save(newValue, for: selectedProvider)
                             }
                             Button {
                                 revealKey.toggle()
@@ -138,8 +138,19 @@ struct SettingsView: View {
             }
             .onAppear {
                 ensureSettings()
-                apiKey = CloudTranslationKey.read()
+                // Move a pre-1.2 single shared key onto the engine that's set,
+                // then load that engine's own key.
+                CloudTranslationKey.migrateLegacyKey(to: selectedProvider)
+                apiKey = CloudTranslationKey.read(for: selectedProvider)
                 region = settings?.cloudTranslationRegion ?? ""
+            }
+            .onChange(of: selectedProvider) { _, newProvider in
+                // Each engine has its own key slot — swap the field to the newly
+                // selected engine's key so a Microsoft key can never be shown or
+                // sent under Google (or vice versa).
+                apiKey = CloudTranslationKey.read(for: newProvider)
+                revealKey = false
+                testResult = nil
             }
         }
     }
