@@ -196,10 +196,13 @@ struct CloudTranslator: Translator {
     /// without it — this was the cause of the 401 seen in the field.
     var region: String = ""
 
-    /// The key with any stray whitespace/newline removed — a trailing newline
-    /// pasted with the key is a common, invisible cause of 401.
+    /// The key with *all* whitespace removed — not just the ends. API keys are
+    /// unbroken tokens with no internal spaces, yet pasting one on iOS commonly
+    /// slips in a stray space or newline (mid-string), which is invisible behind
+    /// a masked field and is a silent cause of 401. Stripping every whitespace
+    /// character makes a mis-pasted key work instead of failing mysteriously.
     private var trimmedKey: String {
-        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        apiKey.filter { !$0.isWhitespace }
     }
 
     func translate(_ texts: [String]) async throws -> [String] {
@@ -349,7 +352,10 @@ enum CloudTranslationKey {
     }
 
     static func save(_ value: String) {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip every whitespace character, not just the ends: a stray space or
+        // newline slipped into the middle of a pasted key is invisible behind a
+        // masked field and otherwise causes a mystifying 401.
+        let trimmed = value.filter { !$0.isWhitespace }
         let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

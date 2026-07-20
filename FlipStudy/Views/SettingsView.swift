@@ -13,6 +13,11 @@ struct SettingsView: View {
     /// selecting a specific cloud engine.
     @State private var pendingUnlock: (() -> Void)?
     @State private var apiKey = ""
+    /// When true the API key is shown as plain text so a grown-up can verify the
+    /// exact characters. A masked SecureField hides paste corruption (truncation,
+    /// autofill hijacking), which looks identical to a wrong key — so we let the
+    /// key be revealed and checked.
+    @State private var revealKey = false
     @State private var region = ""
     @State private var isTesting = false
     /// Result of the last "Test connection" tap: success text or a parsed error.
@@ -43,12 +48,38 @@ struct SettingsView: View {
                         }
                     }
                     if selectedProvider.isCloud {
-                        SecureField("API key", text: $apiKey)
+                        HStack {
+                            // A plain TextField when revealed avoids the strong-
+                            // password / autofill overlay that can silently mangle
+                            // a pasted key in a SecureField.
+                            Group {
+                                if revealKey {
+                                    TextField("API key", text: $apiKey)
+                                } else {
+                                    SecureField("API key", text: $apiKey)
+                                }
+                            }
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
+                            .textContentType(.none)
+                            .font(.body.monospaced())
                             .onChange(of: apiKey) { _, newValue in
                                 CloudTranslationKey.save(newValue)
                             }
+                            Button {
+                                revealKey.toggle()
+                            } label: {
+                                Image(systemName: revealKey ? "eye.slash" : "eye")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel(revealKey ? "Hide API key" : "Show API key")
+                        }
+                        if revealKey, !apiKey.isEmpty {
+                            Text("^[\(apiKey.count) character](inflect: true)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         if selectedProvider == .microsoft {
                             TextField("Region (e.g. eastus)", text: $region)
                                 .textInputAutocapitalization(.never)
