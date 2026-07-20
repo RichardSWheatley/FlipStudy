@@ -14,6 +14,12 @@ struct DeckDetailView: View {
         deck.cards.sorted { $0.leitnerBox != $1.leitnerBox ? $0.leitnerBox < $1.leitnerBox : $0.front < $1.front }
     }
 
+    /// A temporary `.flipstudy` file for the share sheet. Rebuilt each time the
+    /// menu is opened so it always reflects the deck's current cards.
+    private var shareURL: URL? {
+        try? DeckTransfer.exportFile(for: deck)
+    }
+
     var body: some View {
         List {
             if deck.cards.isEmpty {
@@ -67,6 +73,11 @@ struct DeckDetailView: View {
                         showingEditDeck = true
                     } label: {
                         Label("Edit Deck", systemImage: "pencil")
+                    }
+                    if !deck.cards.isEmpty, let shareURL {
+                        ShareLink(item: shareURL) {
+                            Label("Share Deck", systemImage: "square.and.arrow.up")
+                        }
                     }
                 } label: {
                     Label("More", systemImage: "ellipsis.circle")

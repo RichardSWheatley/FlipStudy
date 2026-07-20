@@ -6,6 +6,7 @@ enum DeckSource: String, Codable, CaseIterable {
     case typedSubject
     case book
     case photo
+    case shared
 
     var label: String {
         switch self {
@@ -13,6 +14,7 @@ enum DeckSource: String, Codable, CaseIterable {
         case .typedSubject: "Subject"
         case .book: "Book"
         case .photo: "Photo"
+        case .shared: "Shared"
         }
     }
 
@@ -22,6 +24,7 @@ enum DeckSource: String, Codable, CaseIterable {
         case .typedSubject: "text.book.closed"
         case .book: "books.vertical"
         case .photo: "camera"
+        case .shared: "square.and.arrow.down"
         }
     }
 }

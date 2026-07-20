@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct HomeView: View {
     @Environment(\.modelContext) private var context
@@ -8,6 +9,11 @@ struct HomeView: View {
     @State private var showingPhotoDeck = false
     @State private var showingSubjectDeck = false
     @State private var showingSettings = false
+
+    // Adding a shared deck: pick a `.flipstudy` file, preview it, then confirm.
+    @State private var showingImporter = false
+    @State private var pendingImport: SharedDeck?
+    @State private var importError: String?
 
     var body: some View {
         NavigationStack {
@@ -68,6 +74,45 @@ struct HomeView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .fileImporter(isPresented: $showingImporter,
+                          allowedContentTypes: [.data],
+                          allowsMultipleSelection: false) { result in
+                handleImport(result)
+            }
+            .sheet(item: importSheetItem) { wrapper in
+                ImportDeckSheet(deck: wrapper.deck) {
+                    DeckTransfer.insert(wrapper.deck, into: context)
+                    pendingImport = nil
+                } onCancel: {
+                    pendingImport = nil
+                }
+            }
+            .alert("Couldn't Add Deck",
+                   isPresented: Binding(get: { importError != nil },
+                                        set: { if !$0 { importError = nil } })) {
+                Button("OK", role: .cancel) { importError = nil }
+            } message: {
+                Text(importError ?? "")
+            }
+        }
+    }
+
+    /// `.sheet(item:)` needs an `Identifiable`; wrap the pending snapshot.
+    private var importSheetItem: Binding<PendingDeck?> {
+        Binding(
+            get: { pendingImport.map(PendingDeck.init) },
+            set: { if $0 == nil { pendingImport = nil } }
+        )
+    }
+
+    private func handleImport(_ result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            pendingImport = try DeckTransfer.decode(contentsOf: url)
+        } catch let error as DeckTransfer.TransferError {
+            importError = error.errorDescription
+        } catch {
+            importError = "That file isn't a FlipStudy deck."
         }
     }
 
@@ -97,6 +142,12 @@ struct HomeView: View {
             showingNewDeck = true
         } label: {
             Label("Blank Deck", systemImage: "square.and.pencil")
+        }
+        // Add a deck a friend shared with you as a .flipstudy file.
+        Button {
+            showingImporter = true
+        } label: {
+            Label("Add a Shared Deck", systemImage: "square.and.arrow.down")
         }
     }
 
@@ -135,6 +186,66 @@ private struct DeckRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// Identifiable box so a decoded snapshot can drive `.sheet(item:)`.
+private struct PendingDeck: Identifiable {
+    let id = UUID()
+    let deck: SharedDeck
+}
+
+/// "Add this deck?" preview shown before a shared deck is added, so nothing is
+/// created behind the user's back. Lists the title and a scrollable look at the
+/// cards, with Add / Cancel.
+private struct ImportDeckSheet: View {
+    let deck: SharedDeck
+    let onAdd: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(deck.title.isEmpty ? "Untitled Deck" : deck.title)
+                            .font(.headline)
+                        Text("^[\(deck.cards.count) card](inflect: true)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    Text("This adds a new copy to your decks. Your existing decks aren't changed.")
+                }
+
+                if !deck.cards.isEmpty {
+                    Section("Cards") {
+                        ForEach(Array(deck.cards.enumerated()), id: \.offset) { _, card in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(card.front)
+                                    .font(.body.weight(.medium))
+                                if !card.back.isEmpty {
+                                    Text(card.back)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Add This Deck?")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onCancel() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") { onAdd() }
+                        .disabled(deck.cards.isEmpty)
+                }
+            }
+        }
     }
 }
 
