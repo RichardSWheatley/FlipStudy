@@ -13,6 +13,15 @@ struct SettingsView: View {
     /// selecting a specific cloud engine.
     @State private var pendingUnlock: (() -> Void)?
     @State private var apiKey = ""
+    @State private var region = ""
+    @State private var isTesting = false
+    /// Result of the last "Test connection" tap: success text or a parsed error.
+    @State private var testResult: TestResult?
+
+    private enum TestResult {
+        case success(String)
+        case failure(String)
+    }
 
     private var settings: AppSettings? { settingsList.first }
 
@@ -40,11 +49,43 @@ struct SettingsView: View {
                             .onChange(of: apiKey) { _, newValue in
                                 CloudTranslationKey.save(newValue)
                             }
+                        if selectedProvider == .microsoft {
+                            TextField("Region (e.g. eastus)", text: $region)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .onChange(of: region) { _, newValue in
+                                    settings?.cloudTranslationRegion =
+                                        newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                                }
+                        }
+                        Button {
+                            Task { await testConnection() }
+                        } label: {
+                            if isTesting {
+                                HStack(spacing: 10) {
+                                    ProgressView()
+                                    Text("Testing…")
+                                }
+                            } else {
+                                Label("Test Connection", systemImage: "checkmark.seal")
+                            }
+                        }
+                        .disabled(isTesting || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        if let testResult {
+                            switch testResult {
+                            case .success(let text):
+                                Label(text, systemImage: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            case .failure(let text):
+                                Label(text, systemImage: "xmark.octagon.fill")
+                                    .foregroundStyle(.red)
+                            }
+                        }
                     }
                 } header: {
                     Text("Translation Engine")
                 } footer: {
-                    Text(selectedProvider.footnote)
+                    Text(microsoftFootnote)
                 }
 
                 Section("About") {
@@ -67,12 +108,49 @@ struct SettingsView: View {
             .onAppear {
                 ensureSettings()
                 apiKey = CloudTranslationKey.read()
+                region = settings?.cloudTranslationRegion ?? ""
             }
         }
     }
 
     private var selectedProvider: TranslationProvider {
         settings?.translationProvider ?? .apple
+    }
+
+    /// The engine footnote, with an extra line for Microsoft explaining that a
+    /// region is required — the missing region is the usual cause of a 401.
+    private var microsoftFootnote: String {
+        if selectedProvider == .microsoft {
+            return selectedProvider.footnote
+                + " Microsoft also needs the Region from your Translator resource's \"Keys and Endpoint\" page (e.g. eastus), or it returns a 401."
+        }
+        return selectedProvider.footnote
+    }
+
+    /// Fire a tiny English → Italian translation with the entered key/region and
+    /// report the parsed result, so key setup can be verified without leaving
+    /// Settings. Uses the same `CloudTranslator` the app uses, so a success here
+    /// means Generate Cards will work too.
+    private func testConnection() async {
+        isTesting = true
+        testResult = nil
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedRegion = region.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let results = try await CloudTranslator(provider: selectedProvider, apiKey: key,
+                                                    source: .english, target: .italian,
+                                                    region: trimmedRegion)
+                .translate(["Hello"])
+            let translated = results.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if translated.isEmpty {
+                testResult = .failure("Connected, but no translation came back. Check the key's resource type.")
+            } else {
+                testResult = .success("Works! \"Hello\" → \"\(translated)\"")
+            }
+        } catch {
+            testResult = .failure(error.localizedDescription)
+        }
+        isTesting = false
     }
 
     /// Selecting a cloud engine requires Cloud AI to be on. If it isn't, picking

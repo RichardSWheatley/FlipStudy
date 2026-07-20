@@ -190,7 +190,8 @@ struct CardEditorView: View {
             }
             let key = CloudTranslationKey.read()
             let results = try await CloudTranslator(provider: provider, apiKey: key,
-                                                    source: .english, target: targetLanguage)
+                                                    source: .english, target: targetLanguage,
+                                                    region: settings.cloudTranslationRegion)
                 .translate([trimmedFront])
             if let first = results.first, !first.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 back = first

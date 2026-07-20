@@ -190,9 +190,20 @@ struct CloudTranslator: Translator {
     let apiKey: String
     let source: AnswerLanguage
     let target: AnswerLanguage
+    /// Azure region for Microsoft Translator (e.g. "eastus"). Required as the
+    /// `Ocp-Apim-Subscription-Region` header for a regional key, or the service
+    /// returns 401. Ignored by Google. A regional Translator key WILL 401
+    /// without it — this was the cause of the 401 seen in the field.
+    var region: String = ""
+
+    /// The key with any stray whitespace/newline removed — a trailing newline
+    /// pasted with the key is a common, invisible cause of 401.
+    private var trimmedKey: String {
+        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     func translate(_ texts: [String]) async throws -> [String] {
-        guard !apiKey.isEmpty else { throw CloudTranslationError.missingKey }
+        guard !trimmedKey.isEmpty else { throw CloudTranslationError.missingKey }
         guard !texts.isEmpty else { return [] }
         switch provider {
         case .apple:
@@ -209,7 +220,7 @@ struct CloudTranslator: Translator {
 
     private func translateWithGoogle(_ texts: [String]) async throws -> [String] {
         var components = URLComponents(string: "https://translation.googleapis.com/language/translate/v2")!
-        components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
+        components.queryItems = [URLQueryItem(name: "key", value: trimmedKey)]
         guard let url = components.url else { throw CloudTranslationError.badResponse }
 
         var request = URLRequest(url: url)
@@ -248,7 +259,13 @@ struct CloudTranslator: Translator {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "Ocp-Apim-Subscription-Key")
+        request.setValue(trimmedKey, forHTTPHeaderField: "Ocp-Apim-Subscription-Key")
+        // A regional Translator key requires the region header against the global
+        // endpoint; without it Microsoft rejects the request with 401.
+        let trimmedRegion = region.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedRegion.isEmpty {
+            request.setValue(trimmedRegion, forHTTPHeaderField: "Ocp-Apim-Subscription-Region")
+        }
         let body = texts.map { ["Text": $0] }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -269,7 +286,7 @@ struct CloudTranslator: Translator {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw CloudTranslationError.badResponse }
             guard (200..<300).contains(http.statusCode) else {
-                throw CloudTranslationError.network("status \(http.statusCode)")
+                throw CloudTranslationError.network(serviceError(from: data, status: http.statusCode))
             }
             return data
         } catch let error as CloudTranslationError {
@@ -277,6 +294,26 @@ struct CloudTranslator: Translator {
         } catch {
             throw CloudTranslationError.network(error.localizedDescription)
         }
+    }
+
+    /// Turn a non-2xx response body into a readable message. Both Google and
+    /// Microsoft nest the detail under `error` as `{code, message}`, so surfacing
+    /// it tells a parent *why* (bad key vs bad region vs wrong endpoint) instead
+    /// of a bare "status 401".
+    private func serviceError(from data: Data, status: Int) -> String {
+        if let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let error = root["error"] as? [String: Any] {
+            let code = (error["code"] as? Int).map(String.init)
+                ?? (error["code"] as? String)
+            let message = error["message"] as? String
+            switch (code, message) {
+            case let (code?, message?): return "status \(status) (\(code)): \(message)"
+            case let (code?, nil): return "status \(status) (\(code))"
+            case let (nil, message?): return "status \(status): \(message)"
+            default: break
+            }
+        }
+        return "status \(status)"
     }
 
     /// Pad or trim to match the request count so cards line up by index.

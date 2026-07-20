@@ -20,9 +20,19 @@ final class AppSettings {
         set { translationProviderRaw = newValue.rawValue }
     }
 
+    /// Azure region for the Microsoft Translator resource (e.g. "eastus"). The
+    /// global endpoint with a regional key REQUIRES this as the
+    /// `Ocp-Apim-Subscription-Region` header, or Microsoft returns 401. It's not
+    /// a secret, so it lives here rather than the Keychain. Unused by Google.
+    /// The declaration default lets SwiftData backfill stores made before it
+    /// existed.
+    var cloudTranslationRegion: String = ""
+
     init(cloudAIEnabled: Bool = false,
-         translationProviderRaw: String = TranslationProvider.apple.rawValue) {
+         translationProviderRaw: String = TranslationProvider.apple.rawValue,
+         cloudTranslationRegion: String = "") {
         self.cloudAIEnabled = cloudAIEnabled
         self.translationProviderRaw = translationProviderRaw
+        self.cloudTranslationRegion = cloudTranslationRegion
     }
 }

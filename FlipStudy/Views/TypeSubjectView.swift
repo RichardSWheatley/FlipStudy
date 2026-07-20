@@ -285,14 +285,17 @@ struct TypeSubjectView: View {
                 throw CloudTranslationError.notEnabled
             }
             let key = CloudTranslationKey.read()
+            let region = settings.cloudTranslationRegion
             if baseLanguage != .english {
                 frontResolved = try await CloudTranslator(provider: provider, apiKey: key,
-                                                          source: .english, target: baseLanguage)
+                                                          source: .english, target: baseLanguage,
+                                                          region: region)
                     .translate(englishConcepts)
             }
             if targetLanguage != .english {
                 backResolved = try await CloudTranslator(provider: provider, apiKey: key,
-                                                         source: .english, target: targetLanguage)
+                                                         source: .english, target: targetLanguage,
+                                                         region: region)
                     .translate(englishConcepts)
             }
             assembleIfReady()
