@@ -29,11 +29,11 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Use Cloud AI", isOn: cloudBinding)
+                    Toggle("Use a Cloud Translator", isOn: cloudBinding)
                 } header: {
-                    Text("AI Card Generation")
+                    Text("Translation")
                 } footer: {
-                    Text("On-device AI is always free and private. Cloud AI can make richer cards, but it sends the topic you type to an online service. A grown-up has to turn this on.")
+                    Text("Cards are always drafted on your device — free and private. This only changes the engine used to translate language decks: leave it off for Apple's on-device translator, or turn it on to use Google or Microsoft with your own API key. A grown-up has to turn this on.")
                 }
 
                 Section {
@@ -240,7 +240,7 @@ private struct ParentGateView: View {
                 } header: {
                     Text("Grown-Up Check")
                 } footer: {
-                    Text("Ask a grown-up to solve this to turn on Cloud AI.")
+                    Text("Ask a grown-up to solve this to turn on a cloud translator.")
                 }
             }
             .navigationTitle("Grown-Up Check")

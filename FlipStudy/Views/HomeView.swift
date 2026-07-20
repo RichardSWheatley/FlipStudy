@@ -73,19 +73,24 @@ struct HomeView: View {
 
     @ViewBuilder
     private var newDeckMenuItems: some View {
-        Button {
-            showingSubjectDeck = true
-        } label: {
-            Label("Type a Subject", systemImage: "sparkles")
+        // "Type a Subject" is on-device-AI only. Hide it on hardware that can
+        // never run Apple Intelligence (e.g. a base iPhone 15) so we don't offer
+        // a button that always fails; capable devices still see it and are guided
+        // to enable/download the model inside the sheet.
+        if AICardGenerator.isDeviceEligible {
+            Button {
+                showingSubjectDeck = true
+            } label: {
+                Label("Type a Subject", systemImage: "sparkles")
+            }
         }
-        // "Scan a Page" is hidden for now while the photo path is reworked. The
-        // PhotoDeckView code and its sheet below stay in the repo; re-add this
-        // button to bring the option back.
-        // Button {
-        //     showingPhotoDeck = true
-        // } label: {
-        //     Label("Scan a Page", systemImage: "doc.viewfinder")
-        // }
+        // "Scan a Page" runs on-device OCR + a rule-based splitter, so it needs
+        // no Apple Intelligence and works on every supported device.
+        Button {
+            showingPhotoDeck = true
+        } label: {
+            Label("Scan a Page", systemImage: "doc.viewfinder")
+        }
         Button {
             showingNewDeck = true
         } label: {

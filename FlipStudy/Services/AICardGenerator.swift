@@ -58,6 +58,19 @@ enum AICardGenerator {
         SystemLanguageModel.default.availability == .available
     }
 
+    /// Whether this *hardware* can ever run on-device generation. False only when
+    /// the device model lacks Apple Intelligence (e.g. a base iPhone 15) — as
+    /// opposed to it merely being turned off or still downloading, which a user
+    /// can fix in Settings. Used to hide AI-only entry points on ineligible
+    /// devices instead of offering a button that can never work, while keeping
+    /// the option on capable devices where it's just a toggle or download away.
+    static var isDeviceEligible: Bool {
+        if case .unavailable(.deviceNotEligible) = SystemLanguageModel.default.availability {
+            return false
+        }
+        return true
+    }
+
     /// A user-facing reason the feature is unavailable, or nil if it's ready.
     static var unavailableReason: String? {
         switch SystemLanguageModel.default.availability {
