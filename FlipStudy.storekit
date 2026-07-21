@@ -1,0 +1,41 @@
+{
+  "identifier" : "B43092A5-3787-4377-B9C3-07918C922ED6",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "D1230BC9-21A4-4DFD-9F05-0E7D2D386F46",
+      "localizations" : [
+        {
+          "description" : "Unlock on-device AI: make decks from a typed subject and read scanned pages into question-and-answer cards.",
+          "displayName" : "FlipStudy Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.flipstudy.app.pro",
+      "referenceName" : "FlipStudy Pro",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6786766266",
+    "_developerTeamID" : "2X96YGT8DD",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

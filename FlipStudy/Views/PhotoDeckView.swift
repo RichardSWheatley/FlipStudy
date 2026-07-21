@@ -17,7 +17,10 @@ import Translation
 struct PhotoDeckView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(ProStore.self) private var proStore
     @Query private var settingsList: [AppSettings]
+
+    @State private var showingPaywall = false
 
     @State private var title = ""
     @State private var pickerItem: PhotosPickerItem?
@@ -89,6 +92,26 @@ struct PhotoDeckView: View {
                     Text("Capture")
                 } footer: {
                     Text(captureFootnote)
+                }
+
+                if showsAIUpsell {
+                    Section {
+                        Button {
+                            showingPaywall = true
+                        } label: {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Read pages with AI")
+                                        .font(.body.weight(.medium))
+                                    Text("FlipStudy Pro turns scanned text into real question-and-answer cards.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: "sparkles")
+                            }
+                        }
+                    }
                 }
 
                 if isRecognizing {
@@ -201,6 +224,10 @@ struct PhotoDeckView: View {
                 guard let newItem else { return }
                 Task { await loadPickedImage(newItem) }
             }
+            .sheet(isPresented: $showingPaywall) {
+                PaywallView()
+                    .environment(proStore)
+            }
         }
     }
 
@@ -267,9 +294,16 @@ struct PhotoDeckView: View {
         draftCards = []
         Task {
             var cards: [(front: String, back: String)]
-            do {
-                cards = try await AICardGenerator.makeCards(fromText: text)
-            } catch {
+            // AI page reading is a Pro feature. Without Pro (or on a device that
+            // can't run the model) fall back to the rule-based line splitter so
+            // scanning still produces cards for everyone.
+            if proStore.isPro {
+                do {
+                    cards = try await AICardGenerator.makeCards(fromText: text)
+                } catch {
+                    cards = CardGenerator.cards(from: text)
+                }
+            } else {
                 cards = CardGenerator.cards(from: text)
             }
             // If the AI came back empty, still give the splitter a chance.
@@ -372,10 +406,16 @@ struct PhotoDeckView: View {
     /// Footer under the recognized text, describing which extractor will run so
     /// the user knows what to expect (AI page reading vs. the line splitter).
     private var recognizedFootnote: String {
-        if AICardGenerator.isAvailable {
+        if proStore.isPro && AICardGenerator.isAvailable {
             return "The AI reads this text on your device and writes question-and-answer cards. Edit the text above and redo if the cards need tweaking."
         }
         return "Cards are split line-by-line. Use \"Term: definition\" or \"Term — definition\" to split front and back. Edit the text above and redo if needed."
+    }
+
+    /// Whether to show the "upgrade for AI page reading" nudge: the device can
+    /// run the model, but the user hasn't bought Pro yet.
+    private var showsAIUpsell: Bool {
+        !proStore.isPro && AICardGenerator.isDeviceEligible
     }
 
     private func create() {

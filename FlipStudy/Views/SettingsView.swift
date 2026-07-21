@@ -6,8 +6,11 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(ProStore.self) private var proStore
     @Query private var settingsList: [AppSettings]
 
+    @State private var showingPaywall = false
+    @State private var isRestoring = false
     @State private var showingParentGate = false
     /// What to do once the grown-up gate is passed — enabling Cloud AI, or
     /// selecting a specific cloud engine.
@@ -33,6 +36,42 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    if proStore.isPro {
+                        Label {
+                            Text("Pro unlocked")
+                        } icon: {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundStyle(.green)
+                        }
+                    } else {
+                        Button {
+                            showingPaywall = true
+                        } label: {
+                            Label("Unlock FlipStudy Pro", systemImage: "sparkles")
+                        }
+                        Button {
+                            Task { await restorePurchase() }
+                        } label: {
+                            if isRestoring {
+                                HStack(spacing: 10) {
+                                    ProgressView()
+                                    Text("Restoring…")
+                                }
+                            } else {
+                                Text("Restore Purchase")
+                            }
+                        }
+                        .disabled(isRestoring)
+                    }
+                } header: {
+                    Text("FlipStudy Pro")
+                } footer: {
+                    Text(proStore.isPro
+                         ? "Thanks! On-device AI decks and smart page scanning are turned on."
+                         : "A one-time purchase unlocks the on-device Apple Intelligence features: AI decks from a typed subject, and smart question-and-answer scanning.")
+                }
+
                 Section {
                     Toggle("Use a Cloud Translator", isOn: cloudBinding)
                 } header: {
@@ -136,6 +175,10 @@ struct SettingsView: View {
                     pendingUnlock = nil
                 }
             }
+            .sheet(isPresented: $showingPaywall) {
+                PaywallView()
+                    .environment(proStore)
+            }
             .onAppear {
                 ensureSettings()
                 // Move a pre-1.2 single shared key onto the engine that's set,
@@ -153,6 +196,12 @@ struct SettingsView: View {
                 testResult = nil
             }
         }
+    }
+
+    private func restorePurchase() async {
+        isRestoring = true
+        await proStore.restore()
+        isRestoring = false
     }
 
     private var selectedProvider: TranslationProvider {

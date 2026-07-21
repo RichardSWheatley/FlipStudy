@@ -4,11 +4,13 @@ import UniformTypeIdentifiers
 
 struct HomeView: View {
     @Environment(\.modelContext) private var context
+    @Environment(ProStore.self) private var proStore
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
     @State private var showingNewDeck = false
     @State private var showingPhotoDeck = false
     @State private var showingSubjectDeck = false
     @State private var showingSettings = false
+    @State private var showingPaywall = false
 
     // Adding a shared deck: pick a `.flipstudy` file, preview it, then confirm.
     @State private var showingImporter = false
@@ -74,6 +76,13 @@ struct HomeView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showingPaywall) {
+                PaywallView {
+                    // Unlocked: continue into the AI deck screen they wanted.
+                    showingSubjectDeck = true
+                }
+                .environment(proStore)
+            }
             .fileImporter(isPresented: $showingImporter,
                           allowedContentTypes: [.data],
                           allowsMultipleSelection: false) { result in
@@ -124,9 +133,16 @@ struct HomeView: View {
         // to enable/download the model inside the sheet.
         if AICardGenerator.isDeviceEligible {
             Button {
-                showingSubjectDeck = true
+                // Pro feature: on-device AI. Non-Pro users get the paywall;
+                // buying it drops them straight into the AI deck screen.
+                if proStore.isPro {
+                    showingSubjectDeck = true
+                } else {
+                    showingPaywall = true
+                }
             } label: {
-                Label("Type a Subject", systemImage: "sparkles")
+                Label(proStore.isPro ? "Type a Subject" : "Type a Subject (Pro)",
+                      systemImage: "sparkles")
             }
         }
         // "Scan a Page" runs on-device OCR and then reads the text into cards.
@@ -251,5 +267,6 @@ private struct ImportDeckSheet: View {
 
 #Preview {
     HomeView()
+        .environment(ProStore())
         .modelContainer(for: [Deck.self, Card.self, AppSettings.self], inMemory: true)
 }
