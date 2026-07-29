@@ -94,6 +94,20 @@ struct PhotoDeckView: View {
                     Text(captureFootnote)
                 }
 
+                // A Pro user expects AI page reading; if the model can't run
+                // right now, say why instead of silently making splitter cards.
+                if proStore.isPro, let reason = AICardGenerator.unavailableReason {
+                    Section {
+                        Label {
+                            Text(reason)
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
+                        }
+                        .font(.callout)
+                    }
+                }
+
                 if showsAIUpsell {
                     Section {
                         Button {
