@@ -33,10 +33,25 @@ final class ProStore {
 
     private var updatesTask: Task<Void, Never>?
 
+#if DEBUG
+    /// Developer convenience: any build run or installed from Xcode (Debug
+    /// configuration) treats the app as Pro, so the creator can use every
+    /// feature without buying their own in-app purchase or fighting the sandbox
+    /// login. This whole block is compiled out of Release/App Store builds, so
+    /// real customers still go through the $0.99 purchase. Flip to `false` if you
+    /// ever need to exercise the real StoreKit purchase flow on a Debug build.
+    private static let developerForcesPro = true
+#endif
+
     init() {
         // Keep listening for transactions for the app's lifetime (Ask-to-Buy
         // approvals, purchases made on another device, refunds/revocations).
         updatesTask = listenForTransactions()
+#if DEBUG
+        // Unlock immediately at launch so there's no flash of a locked state
+        // before entitlements load.
+        if Self.developerForcesPro { isPro = true }
+#endif
         Task {
             await loadProduct()
             await refreshEntitlements()
@@ -72,6 +87,9 @@ final class ProStore {
                 owned = true
             }
         }
+#if DEBUG
+        if Self.developerForcesPro { owned = true }
+#endif
         isPro = owned
     }
 
