@@ -357,19 +357,14 @@ struct PhotoDeckView: View {
         }
     }
 
-    /// Non-AI vocabulary fallback: one item per useful line. Strips numbering
-    /// and bullets and drops lines with no letters (clock times, page numbers,
-    /// stray OCR marks), so a plain word list scans cleanly without the model.
+    /// Non-AI vocabulary fallback: one item per useful line, cleaned by the
+    /// same `tidyTerm` guard the AI output goes through, so both paths agree on
+    /// what counts as junk.
     static func vocabItems(from text: String) -> [String] {
         var seen = Set<String>()
         var items: [String] = []
         for rawLine in text.split(whereSeparator: \.isNewline) {
-            var line = rawLine.trimmingCharacters(in: .whitespaces)
-            line = line.replacingOccurrences(of: #"^\d+[.)]?\s*"#, with: "", options: .regularExpression)
-            line = line.replacingOccurrences(of: #"^[•\-*–—]\s*"#, with: "", options: .regularExpression)
-            line = line.trimmingCharacters(in: .whitespaces)
-            guard line.count >= 2,
-                  line.rangeOfCharacter(from: .letters) != nil,
+            guard let line = AICardGenerator.tidyTerm(String(rawLine)),
                   seen.insert(line.lowercased()).inserted else { continue }
             items.append(line)
         }

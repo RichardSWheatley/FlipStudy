@@ -172,13 +172,19 @@ enum AICardGenerator {
 
         let session = LanguageModelSession(instructions: vocabScanInstructions)
         let prompt = """
-        Below is text captured from a page by OCR. The page is a vocabulary \
-        list — words and phrases a student wants to learn. List up to \(count) \
-        of the English words and phrases to study, each exactly as it appears \
-        (fixing obvious OCR slips). Do not answer, define, or translate them. \
-        Ignore numbering, page numbers, headers, times, and other noise.
+        Below is text captured by OCR. It may be a photographed page or a \
+        screenshot of an app, so alongside the vocabulary it can contain \
+        interface junk: clock times, battery numbers, app and button names \
+        (like "Ask", "Search", "Send"), model or product names, navigation \
+        labels, and stray symbols. None of that is vocabulary — leave it out.
 
-        PAGE TEXT:
+        List up to \(count) of the English words and phrases the student wants \
+        to learn, each exactly as it appears (fixing obvious OCR slips like a \
+        scrambled word you can confidently restore). If an item is garbled \
+        beyond recognition, leave it out. Do not answer, define, or translate \
+        anything.
+
+        OCR TEXT:
         \(trimmed)
         """
         let response = try await session.respond(to: prompt, generating: TermList.self)
@@ -186,12 +192,29 @@ enum AICardGenerator {
         var seen = Set<String>()
         var items: [String] = []
         for term in response.content.terms {
-            let cleaned = term.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !cleaned.isEmpty, seen.insert(cleaned.lowercased()).inserted else { continue }
+            guard let cleaned = tidyTerm(term), seen.insert(cleaned.lowercased()).inserted else { continue }
             items.append(cleaned)
         }
         guard !items.isEmpty else { throw GenerationError.empty }
         return items
+    }
+
+    /// Deterministic cleanup for a vocabulary item, applied no matter where the
+    /// item came from (model output or the fallback line parser): strips
+    /// numbering and bullet punctuation, and rejects entries with no letters,
+    /// single characters, and status-bar artifacts like clock times. The model
+    /// is *asked* to do all this, but a guard in code means one slipped item
+    /// can't become a junk card.
+    static func tidyTerm(_ raw: String) -> String? {
+        var term = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        term = term.replacingOccurrences(of: #"^\d+[.)]?\s*"#, with: "", options: .regularExpression)
+        term = term.replacingOccurrences(of: #"^[•\-*–—·‹›<>=+]+\s*"#, with: "", options: .regularExpression)
+        term = term.trimmingCharacters(in: .whitespaces)
+        guard term.count >= 2,
+              term.rangeOfCharacter(from: .letters) != nil,
+              term.range(of: #"^\d{1,2}:\d{2}"#, options: .regularExpression) == nil
+        else { return nil }
+        return term
     }
 
     /// Produce study items for a topic, **always in English** — the model's
@@ -309,11 +332,13 @@ enum AICardGenerator {
     """
 
     private static let vocabScanInstructions = """
-    You clean up vocabulary lists scanned from a page. The student already chose
-    these words and phrases — your only job is to return them as a tidy list.
-    Never answer, define, translate, or expand an item, and never invent new
-    ones. Drop anything that is page furniture rather than vocabulary: numbers,
-    times, headers, and stray OCR fragments.
+    You clean up vocabulary lists captured by OCR from pages and screenshots.
+    The student already chose these words and phrases — your only job is to
+    return them as a tidy list. Never answer, define, translate, or expand an
+    item, and never invent new ones. Be strict about what counts as vocabulary:
+    app names, button labels, menu items, status-bar times and numbers, and
+    stray OCR fragments are never vocabulary, and a garbled token you cannot
+    confidently restore to a real word is dropped, not kept.
     """
 
     private static let conceptInstructions = """
