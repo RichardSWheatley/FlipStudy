@@ -31,9 +31,31 @@ struct PhotoDeckView: View {
     @State private var errorMessage: String?
     @State private var draftCards: [(front: String, back: String)] = []
 
+    /// What kind of content the page holds. Questions & answers get the Q&A
+    /// extractor; a vocabulary list gets each word/phrase as a card front with
+    /// its translation on the back — the same kind of deck Type a Subject makes.
+    enum PageKind: String, CaseIterable, Identifiable {
+        case questions, vocabulary
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .questions: "Questions & answers"
+            case .vocabulary: "Vocabulary to translate"
+            }
+        }
+    }
+
+    @State private var pageKind: PageKind = .questions
+    /// True once the user has picked the page kind themselves; stops the
+    /// auto-detection from overriding an explicit choice.
+    @State private var userChosePageKind = false
+
     /// The language the answers are translated into. `.english` means no
     /// translation — plain question/answer cards.
     @State private var answerLanguage: AnswerLanguage = .english
+    /// True once the user has picked a language themselves; stops the title
+    /// inference from overriding an explicit choice.
+    @State private var userChoseLanguage = false
     /// The extracted English Q&A, kept so the answers can be re-translated when
     /// the language changes without re-running OCR or the AI extractor.
     @State private var englishCards: [(front: String, back: String)] = []
@@ -94,6 +116,20 @@ struct PhotoDeckView: View {
                     Text(captureFootnote)
                 }
 
+                Section {
+                    Picker("Page holds", selection: pageKindSelection) {
+                        ForEach(PageKind.allCases) { kind in
+                            Text(kind.label).tag(kind)
+                        }
+                    }
+                } header: {
+                    Text("What's on the Page?")
+                } footer: {
+                    Text(pageKind == .questions
+                         ? "Questions with answers, or facts to study — each becomes a question-and-answer card."
+                         : "A list of words or phrases to learn. Each becomes a card front, with its translation on the back.")
+                }
+
                 // A Pro user expects AI page reading; if the model can't run
                 // right now, say why instead of silently making splitter cards.
                 if proStore.isPro, let reason = AICardGenerator.unavailableReason {
@@ -147,17 +183,16 @@ struct PhotoDeckView: View {
 
                 if !trimmedText.isEmpty || isRecognizing {
                     Section {
-                        Picker("Answer language", selection: $answerLanguage) {
+                        Picker(pageKind == .questions ? "Answer language" : "Translate into",
+                               selection: languageSelection) {
                             ForEach(AnswerLanguage.allCases) { language in
                                 Text(language.label).tag(language)
                             }
                         }
                     } header: {
-                        Text("Translate Answers")
+                        Text(pageKind == .questions ? "Translate Answers" : "Translate Words")
                     } footer: {
-                        Text(answerLanguage == .english
-                             ? "Cards stay in English. Pick a language to translate each answer onto the back."
-                             : "The English question stays on the front; its answer is translated into \(answerLanguage.label) on the back.")
+                        Text(translationFootnote)
                     }
 
                     Section {
@@ -216,6 +251,20 @@ struct PhotoDeckView: View {
                 guard !englishCards.isEmpty else { return }
                 applyTranslation()
             }
+            .onChange(of: pageKind) { _, _ in
+                // Q&A extraction and vocabulary extraction read the page
+                // differently, so switching modes redoes the cards.
+                guard !trimmedText.isEmpty, !isGenerating else { return }
+                generateCards()
+            }
+            .onChange(of: title) { _, newTitle in
+                // A title like "Italian Vocab" names the language the user wants —
+                // follow it unless they've already picked one by hand.
+                guard !userChoseLanguage,
+                      let inferred = inferredLanguage(from: newTitle),
+                      inferred != answerLanguage else { return }
+                answerLanguage = inferred
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -262,6 +311,71 @@ struct PhotoDeckView: View {
         "Text is read on your device — nothing leaves your phone. Each line becomes a card you can review and edit."
     }
 
+    /// Picker binding that also remembers the choice was the user's own, so
+    /// auto-detection never overrides it.
+    private var pageKindSelection: Binding<PageKind> {
+        Binding(
+            get: { pageKind },
+            set: { newValue in
+                userChosePageKind = true
+                pageKind = newValue
+            }
+        )
+    }
+
+    /// Picker binding that also remembers the choice was the user's own, so the
+    /// title inference never overrides it.
+    private var languageSelection: Binding<AnswerLanguage> {
+        Binding(
+            get: { answerLanguage },
+            set: { newValue in
+                userChoseLanguage = true
+                answerLanguage = newValue
+            }
+        )
+    }
+
+    /// The language named in free text, if any ("Italian Vocab Week 2" → Italian).
+    private func inferredLanguage(from text: String) -> AnswerLanguage? {
+        let lowered = text.lowercased()
+        return AnswerLanguage.allCases.first {
+            $0 != .english && lowered.contains($0.label.lowercased())
+        }
+    }
+
+    /// Footer under the language picker, adapted to the page kind.
+    private var translationFootnote: String {
+        switch (pageKind, answerLanguage) {
+        case (.questions, .english):
+            return "Cards stay in English. Pick a language to translate each answer onto the back."
+        case (.questions, _):
+            return "The English question stays on the front; its answer is translated into \(answerLanguage.label) on the back."
+        case (.vocabulary, .english):
+            return "Pick a language to put each word's translation on the back. On English, the backs stay blank."
+        case (.vocabulary, _):
+            return "Each English word or phrase stays on the front; its \(answerLanguage.label) translation goes on the back."
+        }
+    }
+
+    /// Non-AI vocabulary fallback: one item per useful line. Strips numbering
+    /// and bullets and drops lines with no letters (clock times, page numbers,
+    /// stray OCR marks), so a plain word list scans cleanly without the model.
+    static func vocabItems(from text: String) -> [String] {
+        var seen = Set<String>()
+        var items: [String] = []
+        for rawLine in text.split(whereSeparator: \.isNewline) {
+            var line = rawLine.trimmingCharacters(in: .whitespaces)
+            line = line.replacingOccurrences(of: #"^\d+[.)]?\s*"#, with: "", options: .regularExpression)
+            line = line.replacingOccurrences(of: #"^[•\-*–—]\s*"#, with: "", options: .regularExpression)
+            line = line.trimmingCharacters(in: .whitespaces)
+            guard line.count >= 2,
+                  line.rangeOfCharacter(from: .letters) != nil,
+                  seen.insert(line.lowercased()).inserted else { continue }
+            items.append(line)
+        }
+        return items
+    }
+
     private func recognize(images: [UIImage]) {
         guard !images.isEmpty else { return }
         errorMessage = nil
@@ -278,9 +392,37 @@ struct PhotoDeckView: View {
             append(lines: lines)
             isRecognizing = false
             if !trimmedText.isEmpty {
+                // Work out what kind of page this is instead of assuming —
+                // unless the user already told us.
+                if !userChosePageKind {
+                    pageKind = Self.detectPageKind(of: trimmedText)
+                }
                 generateCards()
             }
         }
+    }
+
+    /// Guess the page kind from its shape. Question pages show themselves with
+    /// question marks, "Answer:" lines, and multiple-choice letters; a page of
+    /// mostly short lines with none of those reads as a vocabulary list.
+    static func detectPageKind(of text: String) -> PageKind {
+        let lines = text.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard !lines.isEmpty else { return .questions }
+
+        var questionSignals = 0
+        for line in lines {
+            if line.contains("?") { questionSignals += 1 }
+            if line.range(of: #"(?i)^answer\b"#, options: .regularExpression) != nil { questionSignals += 1 }
+            if line.range(of: #"^[A-D][.)]\s"#, options: .regularExpression) != nil { questionSignals += 1 }
+        }
+        if questionSignals >= 2 { return .questions }
+
+        // No question shapes: if the lines are mostly short (word-list length),
+        // it's vocabulary; long prose still reads best as Q&A extraction.
+        let shortLines = lines.filter { $0.split(separator: " ").count <= 4 }.count
+        return shortLines * 2 >= lines.count ? .vocabulary : .questions
     }
 
     private func append(lines: [String]) {
@@ -308,21 +450,37 @@ struct PhotoDeckView: View {
         draftCards = []
         Task {
             var cards: [(front: String, back: String)]
-            // AI page reading is a Pro feature. Without Pro (or on a device that
-            // can't run the model) fall back to the rule-based line splitter so
-            // scanning still produces cards for everyone.
-            if proStore.isPro {
-                do {
-                    cards = try await AICardGenerator.makeCards(fromText: text)
-                } catch {
+            switch pageKind {
+            case .questions:
+                // AI page reading is a Pro feature. Without Pro (or on a device
+                // that can't run the model) fall back to the rule-based line
+                // splitter so scanning still produces cards for everyone.
+                if proStore.isPro {
+                    do {
+                        cards = try await AICardGenerator.makeCards(fromText: text)
+                    } catch {
+                        cards = CardGenerator.cards(from: text)
+                    }
+                } else {
                     cards = CardGenerator.cards(from: text)
                 }
-            } else {
-                cards = CardGenerator.cards(from: text)
-            }
-            // If the AI came back empty, still give the splitter a chance.
-            if cards.isEmpty {
-                cards = CardGenerator.cards(from: text)
+                // If the AI came back empty, still give the splitter a chance.
+                if cards.isEmpty {
+                    cards = CardGenerator.cards(from: text)
+                }
+            case .vocabulary:
+                // The page is a list to learn, not material to question: each
+                // item becomes a front, and the back is filled by translation.
+                // The AI only tidies the list; the line parser covers everyone
+                // else.
+                var items: [String] = []
+                if proStore.isPro {
+                    items = (try? await AICardGenerator.makeTerms(fromText: text)) ?? []
+                }
+                if items.isEmpty {
+                    items = Self.vocabItems(from: text)
+                }
+                cards = items.map { (front: $0, back: $0) }
             }
             englishCards = cards
             if cards.isEmpty {
@@ -345,7 +503,11 @@ struct PhotoDeckView: View {
     private func applyTranslation() {
         guard !englishCards.isEmpty else { return }
         guard needsTranslation else {
-            draftCards = englishCards
+            // Vocabulary with no translation language leaves the backs blank
+            // (a word translated into its own language is no card at all).
+            draftCards = pageKind == .vocabulary
+                ? englishCards.map { (front: $0.front, back: "") }
+                : englishCards
             isGenerating = false
             return
         }
@@ -420,6 +582,9 @@ struct PhotoDeckView: View {
     /// Footer under the recognized text, describing which extractor will run so
     /// the user knows what to expect (AI page reading vs. the line splitter).
     private var recognizedFootnote: String {
+        if pageKind == .vocabulary {
+            return "Each word or phrase above becomes a card. Edit the list and redo if something was misread."
+        }
         if proStore.isPro && AICardGenerator.isAvailable {
             return "The AI reads this text on your device and writes question-and-answer cards. Edit the text above and redo if the cards need tweaking."
         }

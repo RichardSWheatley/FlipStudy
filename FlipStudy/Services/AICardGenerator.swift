@@ -158,6 +158,42 @@ enum AICardGenerator {
         return cards
     }
 
+    /// Pull the vocabulary items off a scanned page. The page is a list of
+    /// words/phrases to learn (not Q&A material), so the model's job is only to
+    /// find and clean the items — numbering, page furniture, and OCR junk are
+    /// dropped — never to answer or explain them. Items come back in English for
+    /// the same reason as `makeConcepts`: a real translator fills in the other
+    /// language afterward.
+    static func makeTerms(fromText text: String, count: Int = 25) async throws -> [String] {
+        try requireAvailable()
+
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw GenerationError.empty }
+
+        let session = LanguageModelSession(instructions: vocabScanInstructions)
+        let prompt = """
+        Below is text captured from a page by OCR. The page is a vocabulary \
+        list — words and phrases a student wants to learn. List up to \(count) \
+        of the English words and phrases to study, each exactly as it appears \
+        (fixing obvious OCR slips). Do not answer, define, or translate them. \
+        Ignore numbering, page numbers, headers, times, and other noise.
+
+        PAGE TEXT:
+        \(trimmed)
+        """
+        let response = try await session.respond(to: prompt, generating: TermList.self)
+
+        var seen = Set<String>()
+        var items: [String] = []
+        for term in response.content.terms {
+            let cleaned = term.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty, seen.insert(cleaned.lowercased()).inserted else { continue }
+            items.append(cleaned)
+        }
+        guard !items.isEmpty else { throw GenerationError.empty }
+        return items
+    }
+
     /// Produce study items for a topic, **always in English** — the model's
     /// strongest language. Callers hand these to a `Translator` to fill in each
     /// card's languages, so the words come from a real translation engine and the
@@ -270,6 +306,14 @@ enum AICardGenerator {
     obvious OCR slips when you're confident, keep answers short and correct, and
     leave out page furniture like headers, page numbers, and stray fragments.
     Never invent facts that aren't supported by the text.
+    """
+
+    private static let vocabScanInstructions = """
+    You clean up vocabulary lists scanned from a page. The student already chose
+    these words and phrases — your only job is to return them as a tidy list.
+    Never answer, define, translate, or expand an item, and never invent new
+    ones. Drop anything that is page furniture rather than vocabulary: numbers,
+    times, headers, and stray OCR fragments.
     """
 
     private static let conceptInstructions = """
