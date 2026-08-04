@@ -261,7 +261,7 @@ struct PhotoDeckView: View {
                 // A title like "Italian Vocab" names the language the user wants —
                 // follow it unless they've already picked one by hand.
                 guard !userChoseLanguage,
-                      let inferred = inferredLanguage(from: newTitle),
+                      let inferred = AnswerLanguage.named(in: newTitle),
                       inferred != answerLanguage else { return }
                 answerLanguage = inferred
             }
@@ -333,14 +333,6 @@ struct PhotoDeckView: View {
                 answerLanguage = newValue
             }
         )
-    }
-
-    /// The language named in free text, if any ("Italian Vocab Week 2" → Italian).
-    private func inferredLanguage(from text: String) -> AnswerLanguage? {
-        let lowered = text.lowercased()
-        return AnswerLanguage.allCases.first {
-            $0 != .english && lowered.contains($0.label.lowercased())
-        }
     }
 
     /// Footer under the language picker, adapted to the page kind.

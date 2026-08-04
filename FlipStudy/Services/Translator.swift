@@ -126,6 +126,14 @@ enum AnswerLanguage: String, CaseIterable, Identifiable {
     var isTranslation: Bool { self != .english }
 
     var locale: Locale.Language { Locale.Language(identifier: code) }
+
+    /// The language named in free text, if any ("Italian Vocab Week 2" →
+    /// Italian). English is never inferred — it's the no-translation default,
+    /// so only an explicit target language counts as a mention.
+    static func named(in text: String) -> AnswerLanguage? {
+        let lowered = text.lowercased()
+        return allCases.first { $0 != .english && lowered.contains($0.label.lowercased()) }
+    }
 }
 
 /// Whether a generated deck should be single vocabulary words or full phrases.
