@@ -37,8 +37,8 @@ enum VocabPairDetector {
     static func splitPair(_ line: String) -> (front: String, back: String)? {
         for separator in separators {
             guard let range = line.range(of: separator) else { continue }
-            let front = String(line[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
-            let back = String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+            let front = TextCleanup.stripEdgeQuotes(String(line[..<range.lowerBound]))
+            let back = TextCleanup.stripEdgeQuotes(String(line[range.upperBound...]))
             guard front.rangeOfCharacter(from: .letters) != nil,
                   back.rangeOfCharacter(from: .letters) != nil else { continue }
             return (front, back)

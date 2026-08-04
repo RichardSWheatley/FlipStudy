@@ -212,8 +212,8 @@ enum AICardGenerator {
     static func tidyTerm(_ raw: String) -> String? {
         var term = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         term = term.replacingOccurrences(of: #"^\d+[.)]?\s*"#, with: "", options: .regularExpression)
-        term = term.replacingOccurrences(of: #"^[•\-*–—·‹›<>=+]+\s*"#, with: "", options: .regularExpression)
-        term = term.trimmingCharacters(in: .whitespaces)
+        term = term.replacingOccurrences(of: #"^[•\-*–—·=+]+\s*"#, with: "", options: .regularExpression)
+        term = TextCleanup.stripEdgeQuotes(term)
         guard term.count >= 2,
               term.rangeOfCharacter(from: .letters) != nil,
               term.range(of: #"^\d{1,2}:\d{2}"#, options: .regularExpression) == nil

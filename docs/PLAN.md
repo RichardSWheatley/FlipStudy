@@ -9,8 +9,7 @@ by the release that introduced it.*
 | Version | Build | State | What it added |
 |---|---|---|---|
 | 1.3 | 4 | Approved, ready for distribution | The Pro release: $0.99 purchase gating on-device AI, two-mode Scan a Page, `.flipstudy` deck sharing, per-engine cloud keys. Criteria 1–22. |
-| 1.4 | 9 | Prepare for submission (awaiting IAP review screenshot) | The scan quality release: paired-vocabulary pages used verbatim, multi-language OCR, wrapped-line rejoining, per-capture text replacement, 24-card cap. Criteria 23–30. |
-| 1.5 | 10 | In development | Draft cards are checked before the deck is made and anything doubtful is flagged in the preview. Criteria 31–33. |
+| 1.4 | 10 | Prepare for submission (awaiting IAP review screenshot) | The scan quality release, shipped as one version: paired-vocabulary pages used verbatim, multi-language OCR, wrapped-line rejoining, per-capture text replacement, 24-card cap, edge-quote cleanup, and the pre-save card check. Criteria 23–34. |
 
 ## Purpose
 
@@ -96,3 +95,4 @@ deterministic unit tests in `FlipStudyTests`; simulator scenarios run in the
 | 31 | Every drafted card is checked before the deck is created, and anything doubtful is flagged in the preview with a plain-English reason rather than dropped silently | `FlipStudyTests/CardVerifierTests.swift` |
 | 32 | The check catches an empty back, the same text on both sides, a repeated front, a back that was never translated into the chosen language, text cut off mid-thought, and a paragraph used as a card front | `FlipStudyTests/CardVerifierTests.swift` |
 | 33 | A card can be swiped away in the preview, and all flagged cards can be removed in one action | simulator scenario |
+| 34 | Quote decoration at the edge of a scanned line never reaches a card: OCR's `<<` for the Italian guillemet «, real guillemets, and curly quotes are stripped from fronts and backs, while quotes *inside* a question and words that genuinely begin with a hyphen are left alone | `FlipStudyTests/CardGeneratorTests.swift`, `FlipStudyTests/VocabPairDetectorTests.swift` |

@@ -53,6 +53,18 @@ final class VocabPairDetectorTests: XCTestCase {
         XCTAssertEqual(pairs[1].back, "Grazie")
     }
 
+    func test_pairs_stripsOCRQuoteDecoration_fromTheItalianList() {
+        // "<<Io - I" is Vision's reading of «Io» - I. Neither the guillemet nor
+        // its misread should reach a card.
+        let pairs = try? XCTUnwrap(VocabPairDetector.pairs(from: """
+            <<Io - I
+            «Tu» - You
+            Lui - He
+            """))
+        XCTAssertEqual(pairs?.map(\.front), ["Io", "Tu", "Lui"])
+        XCTAssertEqual(pairs?.map(\.back), ["I", "You", "He"])
+    }
+
     func test_pairs_returnsNilForPlainWordList() {
         XCTAssertNil(VocabPairDetector.pairs(from: "Basketball\nBusy\nChicken\nDoctor"))
     }

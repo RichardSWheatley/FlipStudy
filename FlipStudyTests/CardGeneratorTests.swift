@@ -78,6 +78,29 @@ final class CardGeneratorTests: XCTestCase {
         XCTAssertEqual(cards[0].back, "Buongiorno")
     }
 
+    // Reported from a scanned Italian list: Vision reads the guillemet in
+    // «Io» as "<<", and the front arrived as "<<Io".
+    func test_stripsQuoteDecorationLeftByOCR_fromBothSides() {
+        let cards = CardGenerator.cards(from: "<<Io - I")
+
+        XCTAssertEqual(cards.count, 1)
+        XCTAssertEqual(cards[0].front, "Io")
+        XCTAssertEqual(cards[0].back, "I")
+    }
+
+    func test_stripsRealGuillemetsAndCurlyQuotes() {
+        XCTAssertEqual(CardGenerator.cards(from: "«Io» - I")[0].front, "Io")
+        XCTAssertEqual(CardGenerator.cards(from: "\u{201C}Ciao\u{201D} - Hello")[0].front, "Ciao")
+    }
+
+    func test_quoteStrippingLeavesInnerPunctuationAlone() {
+        // A quoted phrase *inside* a question must survive untouched.
+        let cards = CardGenerator.cards(from: "What does \"center of gravity\" mean?: The balance point")
+
+        XCTAssertEqual(cards[0].front, "What does \"center of gravity\" mean?")
+        XCTAssertEqual(cards[0].back, "The balance point")
+    }
+
     func test_keepsHyphenatedWords_whenBulletStripRequiresTrailingSpace() {
         let cards = CardGenerator.cards(from: "-in-law: suocera")
 

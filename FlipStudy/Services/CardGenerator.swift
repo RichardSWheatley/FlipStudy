@@ -26,13 +26,13 @@ enum CardGenerator {
     private static func splitLine(_ line: String) -> (front: String, back: String) {
         for separator in separators {
             if let range = line.range(of: separator) {
-                let front = String(line[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
-                let back = String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+                let front = TextCleanup.stripEdgeQuotes(String(line[..<range.lowerBound]))
+                let back = TextCleanup.stripEdgeQuotes(String(line[range.upperBound...]))
                 if !front.isEmpty {
                     return (front, back)
                 }
             }
         }
-        return (line, "")
+        return (TextCleanup.stripEdgeQuotes(line), "")
     }
 }
