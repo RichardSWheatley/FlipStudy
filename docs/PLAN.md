@@ -1,4 +1,16 @@
-# FlipStudy 1.3 — Acceptance Plan
+# FlipStudy — Acceptance Plan
+
+*Living document. The scope sections below describe the Pro release (1.3); the
+criteria table grows as later releases add behavior, with each criterion tagged
+by the release that introduced it.*
+
+## Releases
+
+| Version | Build | State | What it added |
+|---|---|---|---|
+| 1.3 | 4 | Approved, ready for distribution | The Pro release: $0.99 purchase gating on-device AI, two-mode Scan a Page, `.flipstudy` deck sharing, per-engine cloud keys. Criteria 1–22. |
+| 1.4 | 9 | Prepare for submission (awaiting IAP review screenshot) | The scan quality release: paired-vocabulary pages used verbatim, multi-language OCR, wrapped-line rejoining, per-capture text replacement, 24-card cap. Criteria 23–30. |
+| 1.5 | 10 | In development | Draft cards are checked before the deck is made and anything doubtful is flagged in the preview. Criteria 31–33. |
 
 ## Purpose
 
