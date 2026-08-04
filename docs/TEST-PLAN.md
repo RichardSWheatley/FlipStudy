@@ -103,4 +103,14 @@ On the physical iPhone:
 | Date | Build | Layers run | Result | Notes |
 |---|---|---|---|---|
 | 2026-08-04 | 1.3 (5) | 1; 2 (S1 partial, S4) | L1 green — 5 suites, 38 tests, 0 failures. S1: launch, New Deck menu, blank-deck create, deck on shelf, card sheet renders (screenshotted); card *save* blocked by simulator keyboard synthesis (tooling, not app — covered by §3 daily use). S4: deck survived app relaunch. | S2/S3 and the on-device pass still owed before submission. Upload of 1.3 (5) itself still blocked on Xcode 26.6 first-run (admin password). |
+| 2026-08-04 | 1.4 (7) | 1 | L1 green — 6 suites (adds VocabPairDetectorTests), 0 failures. Uploaded to App Store Connect ("Upload succeeded"). | Carries the paired-vocab detector and the OCR replace/pre-clean fixes. Build 6 was rejected at upload: it was still labeled 1.3, and 1.3 had been **approved** while we worked — an approved version is closed to new builds. On-device pass (§3) still owed before submitting for review. |
 |  |  |  |  |  |
+
+### Before archiving for upload — check the release train
+
+Apple closes a version to new builds the moment that version is **approved**,
+and Xcode never bumps `MARKETING_VERSION` for you (it's a release decision, not
+a build artifact). So before archiving: look up the app's current state in App
+Store Connect. If the last version was approved or released, bump
+`MARKETING_VERSION` — a build number bump alone will be rejected with
+`ERROR ITMS-90062` / "Invalid Pre-Release Train".
