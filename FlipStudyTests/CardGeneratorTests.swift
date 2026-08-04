@@ -69,4 +69,20 @@ final class CardGeneratorTests: XCTestCase {
         XCTAssertEqual(cards[0].front, "6:33")
         XCTAssertEqual(cards[0].back, "")
     }
+
+    func test_stripsLeadingBullet_beforeSplitting() {
+        let cards = CardGenerator.cards(from: "* Good Morning - Buongiorno")
+
+        XCTAssertEqual(cards.count, 1)
+        XCTAssertEqual(cards[0].front, "Good Morning")
+        XCTAssertEqual(cards[0].back, "Buongiorno")
+    }
+
+    func test_keepsHyphenatedWords_whenBulletStripRequiresTrailingSpace() {
+        let cards = CardGenerator.cards(from: "-in-law: suocera")
+
+        XCTAssertEqual(cards.count, 1)
+        XCTAssertEqual(cards[0].front, "-in-law")
+        XCTAssertEqual(cards[0].back, "suocera")
+    }
 }

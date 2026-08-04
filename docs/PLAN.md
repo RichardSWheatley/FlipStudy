@@ -69,6 +69,10 @@ app local-only, account-free, and kid-safe.
 | 20 | Purchase, Restore Purchase, and Ask-to-Buy pending states resolve correctly against the real App Store sandbox | on-device |
 | 21 | On-device AI generation (Type a Subject, AI page reading, vocab tidying) runs with the network off — airplane mode — proving the core flows are local | on-device |
 | 22 | A Release/TestFlight build does not auto-unlock Pro (the Debug developer unlock is compiled out) | on-device |
+| 23 | A page that already pairs terms with translations ("* Good Morning - Buongiorno") becomes cards from the page's own pairs, verbatim — bullets stripped, nothing generated or re-translated, and the backs' language is recognized (e.g. Italian) so the picker reflects it | `FlipStudyTests/VocabPairDetectorTests.swift` |
+| 24 | A single splittable line inside a plain word list does not flip the page into paired mode (majority rule), and pair splitting requires real words on both sides | `FlipStudyTests/VocabPairDetectorTests.swift` |
+| 25 | Each new capture replaces the recognized text (no accumulation from previous photos), and no-letter OCR junk (clock times, lone symbols) never reaches the recognized-text box | `FlipStudyTests/VocabPairDetectorTests.swift` (`cleanedOCRLines`) + simulator scenario |
+| 26 | The line splitter strips leading list bullets before splitting, without eating leading hyphens that are part of a word | `FlipStudyTests/CardGeneratorTests.swift` |
 
 Every criterion above is checkable; none is a vision statement. Rows 1–10 are
 deterministic unit tests in `FlipStudyTests`; simulator scenarios run in the

@@ -49,6 +49,10 @@ struct PhotoDeckView: View {
     /// True once the user has picked the page kind themselves; stops the
     /// auto-detection from overriding an explicit choice.
     @State private var userChosePageKind = false
+    /// True when the scanned page already pairs each term with its translation
+    /// ("Good Morning - Buongiorno"). The page's own pairs become the cards
+    /// as-is — no generation, no re-translation.
+    @State private var pageProvidesPairs = false
 
     /// The language the answers are translated into. `.english` means no
     /// translation — plain question/answer cards.
@@ -337,6 +341,9 @@ struct PhotoDeckView: View {
 
     /// Footer under the language picker, adapted to the page kind.
     private var translationFootnote: String {
+        if pageProvidesPairs {
+            return "This page already pairs each term with its translation — the page's own pairs are used, exactly as written."
+        }
         switch (pageKind, answerLanguage) {
         case (.questions, .english):
             return "Cards stay in English. Pick a language to translate each answer onto the back."
@@ -376,7 +383,12 @@ struct PhotoDeckView: View {
             } catch {
                 errorMessage = error.localizedDescription
             }
-            append(lines: lines)
+            // Each capture REPLACES the recognized text — appending left the
+            // previous photo's text in the box, so it showed things that were
+            // never in the current image. The text is also pre-cleaned before
+            // it's shown: status-bar artifacts and other no-letter junk never
+            // belonged in the box at all.
+            extractedText = Self.cleanedOCRLines(lines).joined(separator: "\n")
             isRecognizing = false
             if !trimmedText.isEmpty {
                 // Work out what kind of page this is instead of assuming —
@@ -387,6 +399,18 @@ struct PhotoDeckView: View {
                 generateCards()
             }
         }
+    }
+
+    /// Drop OCR lines that can't be content — clock times, battery numbers,
+    /// lone symbols — before the text is ever shown or used. Lines with words
+    /// pass through verbatim; deciding whether words are junk is the AI's job,
+    /// not a heuristic's.
+    static func cleanedOCRLines(_ lines: [String]) -> [String] {
+        lines
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            // Two characters minimum: a lone "O" is a scanned radio button or
+            // stray mark, never content — same floor tidyTerm uses.
+            .filter { $0.count >= 2 && $0.rangeOfCharacter(from: .letters) != nil }
     }
 
     /// Guess the page kind from its shape. Question pages show themselves with
@@ -410,16 +434,6 @@ struct PhotoDeckView: View {
         // it's vocabulary; long prose still reads best as Q&A extraction.
         let shortLines = lines.filter { $0.split(separator: " ").count <= 4 }.count
         return shortLines * 2 >= lines.count ? .vocabulary : .questions
-    }
-
-    private func append(lines: [String]) {
-        guard !lines.isEmpty else { return }
-        let joined = lines.joined(separator: "\n")
-        if extractedText.isEmpty {
-            extractedText = joined
-        } else {
-            extractedText += "\n" + joined
-        }
     }
 
     // MARK: - Card extraction
@@ -456,18 +470,33 @@ struct PhotoDeckView: View {
                     cards = CardGenerator.cards(from: text)
                 }
             case .vocabulary:
-                // The page is a list to learn, not material to question: each
-                // item becomes a front, and the back is filled by translation.
-                // The AI only tidies the list; the line parser covers everyone
-                // else.
-                var items: [String] = []
-                if proStore.isPro {
-                    items = (try? await AICardGenerator.makeTerms(fromText: text)) ?? []
+                // A page that already pairs terms with translations
+                // ("Good Morning - Buongiorno") IS the deck — take its pairs
+                // verbatim, before any model or translator gets a chance to
+                // second-guess the page. Deterministic, so it works for
+                // everyone, Pro or not.
+                if let pairs = VocabPairDetector.pairs(from: text) {
+                    pageProvidesPairs = true
+                    if !userChoseLanguage,
+                       let detected = VocabPairDetector.backLanguage(of: pairs) {
+                        answerLanguage = detected
+                    }
+                    cards = pairs
+                } else {
+                    // The page is a plain list to learn: each item becomes a
+                    // front, and the back is filled by translation. The AI
+                    // only tidies the list; the line parser covers everyone
+                    // else.
+                    pageProvidesPairs = false
+                    var items: [String] = []
+                    if proStore.isPro {
+                        items = (try? await AICardGenerator.makeTerms(fromText: text)) ?? []
+                    }
+                    if items.isEmpty {
+                        items = Self.vocabItems(from: text)
+                    }
+                    cards = items.map { (front: $0, back: $0) }
                 }
-                if items.isEmpty {
-                    items = Self.vocabItems(from: text)
-                }
-                cards = items.map { (front: $0, back: $0) }
             }
             englishCards = cards
             if cards.isEmpty {
@@ -489,6 +518,13 @@ struct PhotoDeckView: View {
     /// language deck.
     private func applyTranslation() {
         guard !englishCards.isEmpty else { return }
+        // The page's own pairs are already finished cards — never re-translate
+        // what the page itself provided, whatever the language picker says.
+        guard !pageProvidesPairs else {
+            draftCards = englishCards
+            isGenerating = false
+            return
+        }
         guard needsTranslation else {
             // Vocabulary with no translation language leaves the backs blank
             // (a word translated into its own language is no card at all).

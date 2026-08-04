@@ -15,6 +15,10 @@ enum CardGenerator {
         text
             .split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
+            // A leading bullet is list decoration, not card content — without
+            // this, "* Good Morning - Buongiorno" made a card whose front was
+            // "* Good Morning".
+            .map { $0.replacingOccurrences(of: #"^[•*·‣▪–—-]+\s+"#, with: "", options: .regularExpression) }
             .filter { $0.count >= 3 }
             .map(splitLine)
     }
