@@ -226,7 +226,7 @@ struct PhotoDeckView: View {
 
                 if !draftCards.isEmpty {
                     Section {
-                        ForEach(Array(draftCards.enumerated()), id: \.offset) { _, card in
+                        ForEach(Array(checkedCards.enumerated()), id: \.offset) { index, card in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(card.front)
                                     .font(.body.weight(.medium))
@@ -235,12 +235,38 @@ struct PhotoDeckView: View {
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                 }
+                                // Say what looks wrong rather than dropping the
+                                // card silently — the user can see the page and
+                                // decide far better than a heuristic can.
+                                ForEach(card.issues, id: \.self) { issue in
+                                    Label(issue.label, systemImage: "exclamationmark.triangle.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    remove(at: index)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         }
                     } header: {
                         Text("Preview (\(draftCards.count))")
                     } footer: {
-                        Text("Review each card before creating the deck.")
+                        Text(previewFootnote)
+                    }
+
+                    if suspectCount > 0 {
+                        Section {
+                            Button(role: .destructive) {
+                                removeSuspectCards()
+                            } label: {
+                                Label("^[Remove \(suspectCount) flagged card](inflect: true)",
+                                      systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }
@@ -337,6 +363,37 @@ struct PhotoDeckView: View {
                 answerLanguage = newValue
             }
         )
+    }
+
+    /// Every drafted card with whatever the verifier found wrong with it. The
+    /// check runs on the drafts, before anything is saved, so a bad card is
+    /// caught in the preview instead of on the phone days later.
+    private var checkedCards: [CheckedCard] {
+        CardVerifier.check(draftCards,
+                           expectedBackLanguage: pageProvidesPairs ? nil : answerLanguage)
+    }
+
+    private var suspectCount: Int {
+        checkedCards.filter(\.isSuspect).count
+    }
+
+    private var previewFootnote: String {
+        suspectCount == 0
+            ? "These all look right. Swipe a card to delete it before creating the deck."
+            : "^[\(suspectCount) card](inflect: true) looks off — check the ones marked below, or swipe to delete."
+    }
+
+    private func remove(at index: Int) {
+        guard draftCards.indices.contains(index) else { return }
+        draftCards.remove(at: index)
+    }
+
+    /// Drop everything the verifier flagged, in one action.
+    private func removeSuspectCards() {
+        let keep = checkedCards.enumerated()
+            .filter { !$0.element.isSuspect }
+            .map(\.offset)
+        draftCards = keep.map { draftCards[$0] }
     }
 
     /// Footer under the language picker, adapted to the page kind.

@@ -81,3 +81,6 @@ app local-only, account-free, and kid-safe.
 Every criterion above is checkable; none is a vision statement. Rows 1–10 are
 deterministic unit tests in `FlipStudyTests`; simulator scenarios run in the
 1.3 release pass; on-device rows run on the physical iPhone before submission.
+| 31 | Every drafted card is checked before the deck is created, and anything doubtful is flagged in the preview with a plain-English reason rather than dropped silently | `FlipStudyTests/CardVerifierTests.swift` |
+| 32 | The check catches an empty back, the same text on both sides, a repeated front, a back that was never translated into the chosen language, text cut off mid-thought, and a paragraph used as a card front | `FlipStudyTests/CardVerifierTests.swift` |
+| 33 | A card can be swiped away in the preview, and all flagged cards can be removed in one action | simulator scenario |
