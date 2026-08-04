@@ -128,7 +128,11 @@ enum AICardGenerator {
     /// lecture notes — so the model's job is to *understand* the content and pull
     /// out the useful question/answer pairs, not to split lines mechanically.
     /// Cards are drafts the user reviews before the deck is made.
-    static func makeCards(fromText text: String, count: Int = 12) async throws -> [(front: String, back: String)] {
+    /// The cap is higher than the typed-topic one: a topic invents cards and 12
+    /// is a sensible study set, but a scanned page has however much content it
+    /// has, and silently dropping the back half of a worksheet reads as the
+    /// scanner being bad at its job.
+    static func makeCards(fromText text: String, count: Int = 24) async throws -> [(front: String, back: String)] {
         try requireAvailable()
 
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

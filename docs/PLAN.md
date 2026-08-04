@@ -73,6 +73,10 @@ app local-only, account-free, and kid-safe.
 | 24 | A single splittable line inside a plain word list does not flip the page into paired mode (majority rule), and pair splitting requires real words on both sides | `FlipStudyTests/VocabPairDetectorTests.swift` |
 | 25 | Each new capture replaces the recognized text (no accumulation from previous photos), and no-letter OCR junk (clock times, lone symbols) never reaches the recognized-text box | `FlipStudyTests/VocabPairDetectorTests.swift` (`cleanedOCRLines`) + simulator scenario |
 | 26 | The line splitter strips leading list bullets before splitting, without eating leading hyphens that are part of a word | `FlipStudyTests/CardGeneratorTests.swift` |
+| 27 | OCR recognizes every language the app can put on a card (en/it/es/fr/de/pt/ja/zh), so a bilingual page is read in its own languages instead of English-corrected into nonsense | on-device (scan an English–Italian list; Italian words come back spelled correctly) |
+| 28 | A sentence that wraps across visual lines is rejoined into one block before the extractor sees it, so questions arrive whole rather than as fragments | `FlipStudyTests/TextLayoutTests.swift` |
+| 29 | Rejoining never glues separate entries together: a page of uniformly short lines (a vocabulary list) keeps one entry per line, and terminal punctuation or a paragraph gap always ends a block | `FlipStudyTests/TextLayoutTests.swift` |
+| 30 | A scanned page yields up to 24 cards rather than being silently truncated at 12 | on-device (scan a dense worksheet; card count reflects the page) |
 
 Every criterion above is checkable; none is a vision statement. Rows 1–10 are
 deterministic unit tests in `FlipStudyTests`; simulator scenarios run in the
