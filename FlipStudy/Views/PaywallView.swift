@@ -60,8 +60,8 @@ struct PaywallView: View {
                        title: "Type a Subject",
                        detail: "Type any topic and the AI drafts a full set of study cards for you.")
             FeatureRow(icon: "doc.viewfinder",
-                       title: "Smart page scanning",
-                       detail: "Scanning a page reads the text into real question-and-answer cards, not just line-by-line splits.")
+                       title: "Scan a Page",
+                       detail: "Point the camera at a worksheet or word list and the AI reads it into real flashcards.")
             FeatureRow(icon: "lock.shield",
                        title: "Private by design",
                        detail: "Everything is generated on your device. No accounts, no servers, nothing to leak.")

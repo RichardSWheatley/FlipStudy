@@ -16,7 +16,9 @@ with your own API key.
   words come from a real translation engine, not the model's guesses.
 - **Scan a page** — capture a worksheet, glossary, or textbook page; on-device
   text recognition (Vision) plus the model turn it into cards you review before
-  the deck is created.
+  the deck is created. Like Type a Subject, this needs Apple Intelligence —
+  there's no dumbed-down mode; a page that can't be read well isn't turned into
+  bad cards.
 - **Add cards by hand** — a simple front/back editor, with optional AI
   translation of the answer.
 - **Card styles** — single words, phrases & sentences, or **sentence starters**
@@ -44,8 +46,9 @@ with your own API key.
 2. Select the **FlipStudy** scheme.
 3. Choose your iPhone (or a simulator) and run.
 
-On-device AI generation requires a device that supports Apple Intelligence with
-it turned on; the rest of the app works without it.
+The smart features (Type a Subject, Scan a Page) require a device that supports
+Apple Intelligence with it turned on, and are hidden on hardware that can't run
+it; the rest of the app — manual decks, studying, sharing — works everywhere.
 
 ## Project structure
 
@@ -58,7 +61,6 @@ FlipStudy/
     AppSettings.swift       User settings (cloud AI, translation provider)
   Services/
     AICardGenerator.swift   On-device card/concept generation (FoundationModels)
-    CardGenerator.swift     Rule-based card splitting (offline, no AI)
     Translator.swift        Apple + optional cloud translation; deck styles
     TextRecognizer.swift    OCR of scanned pages (Vision)
     Speech.swift            Text-to-speech of answers (AVSpeechSynthesizer)

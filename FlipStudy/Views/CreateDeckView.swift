@@ -27,7 +27,7 @@ struct CreateDeckView: View {
                     Text("Deck")
                 } footer: {
                     if !isEditing {
-                        Text("Add cards by hand once the deck is created. Making cards from a subject, a book, or a photo comes in later updates.")
+                        Text("Add cards by hand once the deck is created.")
                     }
                 }
             }

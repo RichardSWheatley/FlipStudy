@@ -11,6 +11,10 @@ struct HomeView: View {
     @State private var showingSubjectDeck = false
     @State private var showingSettings = false
     @State private var showingPaywall = false
+    /// Which AI feature the user was heading into when the paywall appeared,
+    /// so a successful unlock continues into that screen, not a fixed one.
+    private enum PaywallDestination { case typeSubject, scanPage }
+    @State private var paywallDestination: PaywallDestination = .typeSubject
 
     // Adding a shared deck: pick a `.flipstudy` file, preview it, then confirm.
     @State private var showingImporter = false
@@ -79,7 +83,10 @@ struct HomeView: View {
             .sheet(isPresented: $showingPaywall) {
                 PaywallView {
                     // Unlocked: continue into the AI deck screen they wanted.
-                    showingSubjectDeck = true
+                    switch paywallDestination {
+                    case .typeSubject: showingSubjectDeck = true
+                    case .scanPage: showingPhotoDeck = true
+                    }
                 }
                 .environment(proStore)
             }
@@ -127,32 +134,36 @@ struct HomeView: View {
 
     @ViewBuilder
     private var newDeckMenuItems: some View {
-        // "Type a Subject" is on-device-AI only. Hide it on hardware that can
-        // never run Apple Intelligence (e.g. a base iPhone 15) so we don't offer
-        // a button that always fails; capable devices still see it and are guided
-        // to enable/download the model inside the sheet.
+        // The smart features — "Type a Subject" and "Scan a Page" — are
+        // on-device-AI only. Hide them on hardware that can never run Apple
+        // Intelligence (e.g. a base iPhone 15) so we don't offer buttons that
+        // always fail; capable devices still see them and are guided to
+        // enable/download the model inside the sheet. Both are Pro features:
+        // non-Pro users get the paywall, and buying it drops them straight
+        // into the screen they wanted.
         if AICardGenerator.isDeviceEligible {
             Button {
-                // Pro feature: on-device AI. Non-Pro users get the paywall;
-                // buying it drops them straight into the AI deck screen.
                 if proStore.isPro {
                     showingSubjectDeck = true
                 } else {
+                    paywallDestination = .typeSubject
                     showingPaywall = true
                 }
             } label: {
                 Label(proStore.isPro ? "Type a Subject" : "Type a Subject (Pro)",
                       systemImage: "sparkles")
             }
-        }
-        // "Scan a Page" runs on-device OCR and then reads the text into cards.
-        // It uses Apple Intelligence to write real question/answer pairs when
-        // available, and falls back to a rule-based splitter otherwise, so it
-        // works on every supported device.
-        Button {
-            showingPhotoDeck = true
-        } label: {
-            Label("Scan a Page", systemImage: "doc.viewfinder")
+            Button {
+                if proStore.isPro {
+                    showingPhotoDeck = true
+                } else {
+                    paywallDestination = .scanPage
+                    showingPaywall = true
+                }
+            } label: {
+                Label(proStore.isPro ? "Scan a Page" : "Scan a Page (Pro)",
+                      systemImage: "doc.viewfinder")
+            }
         }
         Button {
             showingNewDeck = true

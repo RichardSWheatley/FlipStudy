@@ -10,6 +10,7 @@ by the release that introduced it.*
 |---|---|---|---|
 | 1.3 | 4 | Approved, ready for distribution | The Pro release: $0.99 purchase gating on-device AI, two-mode Scan a Page, `.flipstudy` deck sharing, per-engine cloud keys. Criteria 1–22. |
 | 1.4 | 10 | Prepare for submission (awaiting IAP review screenshot) | The scan quality release, shipped as one version: paired-vocabulary pages used verbatim, multi-language OCR, wrapped-line rejoining, per-capture text replacement, 24-card cap, edge-quote cleanup, and the pre-save card check. Criteria 23–34. |
+| 1.5 | 12 | First build headed to App Store Connect | The AI-only release: Scan a Page joins Type a Subject behind Apple Intelligence + Pro; the line-splitter and vocab line-parse fallbacks are deleted, and AI failures surface as plain-language errors instead of junk cards. Criteria 35–37; retires 1, 2, 4, 12, 13, 26. |
 
 ## Purpose
 
@@ -54,14 +55,41 @@ app local-only, account-free, and kid-safe.
   language pick sticks; title inference and shape detection only fill gaps,
   and English is never inferred from a title.
 
+## What 1.5 changes
+
+The lesson behind 1.5: every non-AI generation path produced cards bad enough
+to read as the app being broken, and every silent fallback *from* a failed AI
+run showed those bad cards as if the AI had written them. So:
+
+- **Smart features are Apple Intelligence-only.** Scan a Page joins Type a
+  Subject behind the same two gates: hidden from the New Deck menu on hardware
+  that can never run the model, and Pro-gated (with the "(Pro)" label and
+  paywall) on hardware that can. Unlocking continues into whichever feature
+  was tapped.
+- **The fallback generators are deleted.** `CardGenerator` (the line splitter)
+  and `PhotoDeckView.vocabItems` (the line parser) are gone, tests and all. A
+  failed or unavailable AI extraction now shows a plain-language reason —
+  including the model-specific failures (page too long for the context window,
+  guardrail refusal, iPhone/Siri language mismatch) that previously fell
+  through to silent splitter cards with no explanation.
+- **Paired-vocabulary pages are unchanged.** A page that already pairs each
+  term with its translation still becomes cards verbatim, model or no model —
+  those pairs are the page's own content, not generation.
+- **Simulator consequence.** Model availability in the simulator follows the
+  host Mac: with Apple Intelligence on macOS the sim proxies the host model
+  and the full AI scan runs (verified 2026-08-31); without it, only the
+  paired-vocabulary page produces cards and the AI paths show the
+  unavailability reason. Real-hardware behavior is still proven on-device
+  (TEST-PLAN §3).
+
 ## Acceptance criteria
 
 | # | Criterion (verifiable behavior) | Proven by |
 |---|---|---|
-| 1 | `CardGenerator.cards(from:)` splits "Term: definition" / "Term — definition" / tab lines into front/back, drops lines under 3 characters, and leaves the back empty when no separator is found | `FlipStudyTests/CardGeneratorTests.swift` |
-| 2 | The first separator found in a line wins, and a line whose separator yields an empty front falls back to whole-line front | `FlipStudyTests/CardGeneratorTests.swift` |
+| 1 | *(Retired in 1.5 — splitter deleted)* `CardGenerator.cards(from:)` splits "Term: definition" / "Term — definition" / tab lines into front/back, drops lines under 3 characters, and leaves the back empty when no separator is found | — |
+| 2 | *(Retired in 1.5 — splitter deleted)* The first separator found in a line wins, and a line whose separator yields an empty front falls back to whole-line front | — |
 | 3 | `AICardGenerator.tidyTerm` strips list numbering ("3.") and bullet punctuation, and rejects single characters, letterless strings, and status-bar clock times like "9:41" | `FlipStudyTests/VocabTermCleaningTests.swift` |
-| 4 | `PhotoDeckView.vocabItems(from:)` produces one cleaned item per useful line, deduplicated case-insensitively, using the same `tidyTerm` guard as the AI path | `FlipStudyTests/VocabTermCleaningTests.swift` |
+| 4 | *(Retired in 1.5 — line parser deleted)* `PhotoDeckView.vocabItems(from:)` produces one cleaned item per useful line, deduplicated case-insensitively, using the same `tidyTerm` guard as the AI path | — |
 | 5 | `PhotoDeckView.detectPageKind` returns `.questions` for text with two or more question signals (question marks, "Answer:" lines, "A)" choices) and `.vocabulary` for pages of mostly short lines | `FlipStudyTests/PageKindDetectionTests.swift` |
 | 6 | Long prose without question signals still detects as `.questions` (AI extraction reads it best), and empty text defaults to `.questions` | `FlipStudyTests/PageKindDetectionTests.swift` |
 | 7 | A `SharedDeck` snapshot round-trips through `DeckTransfer.encode`/`decode` preserving title, subject, and card order | `FlipStudyTests/DeckTransferTests.swift` |
@@ -69,8 +97,8 @@ app local-only, account-free, and kid-safe.
 | 9 | `AnswerLanguage.named(in:)` finds a target language named anywhere in a title, never returns `.english`, and returns nil when no language is named | `FlipStudyTests/AnswerLanguageTests.swift` |
 | 10 | Each `AnswerLanguage` maps to its correct BCP-47 code and only non-English values report `isTranslation` | `FlipStudyTests/AnswerLanguageTests.swift` |
 | 11 | Without Pro, Home shows "Type a Subject (Pro)" and tapping it opens the paywall instead of the generator; after purchase (StoreKit config `FlipStudy.storekit`) the generator opens directly | simulator scenario |
-| 12 | Without Pro, Q&A scanning still produces splitter cards, and the "Read pages with AI" upsell appears only on AI-eligible hardware | simulator scenario |
-| 13 | For a Pro user whose model can't run, Scan a Page shows the orange unavailable-reason banner naming why, and cards still generate via the fallback | simulator scenario |
+| 12 | *(Retired in 1.5 — superseded by 35)* Without Pro, Q&A scanning still produces splitter cards, and the "Read pages with AI" upsell appears only on AI-eligible hardware | — |
+| 13 | *(Retired in 1.5 — superseded by 36)* For a Pro user whose model can't run, Scan a Page shows the orange unavailable-reason banner naming why, and cards still generate via the fallback | — |
 | 14 | Typing a title containing "Italian" flips the scan translation language to Italian, but never after the user has picked a language by hand | simulator scenario |
 | 15 | Switching page kind after a scan regenerates the cards for the new mode without re-scanning | simulator scenario |
 | 16 | Share Deck exports a `.flipstudy` file whose title survives filename sanitizing; Add a Shared Deck previews it and only inserts a new deck (source `.shared`) on confirm | simulator scenario |
@@ -83,7 +111,7 @@ app local-only, account-free, and kid-safe.
 | 23 | A page that already pairs terms with translations ("* Good Morning - Buongiorno") becomes cards from the page's own pairs, verbatim — bullets stripped, nothing generated or re-translated, and the backs' language is recognized (e.g. Italian) so the picker reflects it | `FlipStudyTests/VocabPairDetectorTests.swift` |
 | 24 | A single splittable line inside a plain word list does not flip the page into paired mode (majority rule), and pair splitting requires real words on both sides | `FlipStudyTests/VocabPairDetectorTests.swift` |
 | 25 | Each new capture replaces the recognized text (no accumulation from previous photos), and no-letter OCR junk (clock times, lone symbols) never reaches the recognized-text box | `FlipStudyTests/VocabPairDetectorTests.swift` (`cleanedOCRLines`) + simulator scenario |
-| 26 | The line splitter strips leading list bullets before splitting, without eating leading hyphens that are part of a word | `FlipStudyTests/CardGeneratorTests.swift` |
+| 26 | *(Retired in 1.5 — splitter deleted; bullet stripping lives on in `tidyTerm` and `VocabPairDetector`)* The line splitter strips leading list bullets before splitting, without eating leading hyphens that are part of a word | — |
 | 27 | OCR recognizes every language the app can put on a card (en/it/es/fr/de/pt/ja/zh), so a bilingual page is read in its own languages instead of English-corrected into nonsense | on-device (scan an English–Italian list; Italian words come back spelled correctly) |
 | 28 | A sentence that wraps across visual lines is rejoined into one block before the extractor sees it, so questions arrive whole rather than as fragments | `FlipStudyTests/TextLayoutTests.swift` |
 | 29 | Rejoining never glues separate entries together: a page of uniformly short lines (a vocabulary list) keeps one entry per line, and terminal punctuation or a paragraph gap always ends a block | `FlipStudyTests/TextLayoutTests.swift` |
@@ -95,4 +123,7 @@ deterministic unit tests in `FlipStudyTests`; simulator scenarios run in the
 | 31 | Every drafted card is checked before the deck is created, and anything doubtful is flagged in the preview with a plain-English reason rather than dropped silently | `FlipStudyTests/CardVerifierTests.swift` |
 | 32 | The check catches an empty back, the same text on both sides, a repeated front, a back that was never translated into the chosen language, text cut off mid-thought, and a paragraph used as a card front | `FlipStudyTests/CardVerifierTests.swift` |
 | 33 | A card can be swiped away in the preview, and all flagged cards can be removed in one action | simulator scenario |
-| 34 | Quote decoration at the edge of a scanned line never reaches a card: OCR's `<<` for the Italian guillemet «, real guillemets, and curly quotes are stripped from fronts and backs, while quotes *inside* a question and words that genuinely begin with a hyphen are left alone | `FlipStudyTests/CardGeneratorTests.swift`, `FlipStudyTests/VocabPairDetectorTests.swift` |
+| 34 | Quote decoration at the edge of a scanned line never reaches a card: OCR's `<<` for the Italian guillemet «, real guillemets, and curly quotes are stripped from fronts and backs, while quotes *inside* a question and words that genuinely begin with a hyphen are left alone | `FlipStudyTests/VocabPairDetectorTests.swift` (splitter half retired with 1.5) |
+| 35 | On hardware that can't run Apple Intelligence, the New Deck menu shows neither Type a Subject nor Scan a Page; on capable hardware without Pro, both carry "(Pro)" and open the paywall, and unlocking continues into whichever feature was tapped | simulator scenario |
+| 36 | A scan whose AI extraction can't run or fails shows a plain-language reason (model off or downloading, too much text for the context window, guardrail refusal, iPhone/Siri language mismatch, nothing studiable) and never substitutes rule-based cards | simulator scenario (unavailability) + on-device |
+| 37 | A paired-vocabulary page still becomes cards verbatim with no model involved — the one scan path that works when the model can't run | `FlipStudyTests/VocabPairDetectorTests.swift` + simulator scenario |

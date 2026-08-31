@@ -26,7 +26,6 @@ xcodebuild test -project FlipStudy.xcodeproj -scheme FlipStudy -destination 'pla
 
 - `FlipStudyTests/VocabTermCleaningTests.swift` — scanned vocab terms are cleaned of numbering, bullets, and stray punctuation before they become card fronts.
 - `FlipStudyTests/PageKindDetectionTests.swift` — a scanned page is correctly classified (Q&A page vs vocab list vs plain notes), which decides the generation path.
-- `FlipStudyTests/CardGeneratorTests.swift` — the fallback line splitter turns raw scanned text into the expected front/back card pairs.
 - `FlipStudyTests/DeckTransferTests.swift` — a deck encodes to `.flipstudy` and decodes back with nothing lost or reordered (the share/import round-trip).
 - `FlipStudyTests/AnswerLanguageTests.swift` — the answer/translation language for vocab card backs is chosen correctly from the deck and device settings.
 
@@ -49,13 +48,17 @@ Screenshot checkpoint: the shelf with the new deck, and the card mid-study showi
 ### S2 — Scan flow via New Deck menu
 | Step | Action | Must show |
 |---|---|---|
-| a | New Deck → Scan a Page | camera/scan UI opens (photo-library fallback acceptable in sim) |
-| b | Provide a page image with Q&A lines | preview lists generated cards before anything is saved |
+| a | New Deck (with Pro unlocked) → Scan a Page | camera/scan UI opens (photo-library fallback acceptable in sim); without Pro the item reads "Scan a Page (Pro)" and opens the paywall |
+| b | Provide a **paired-vocabulary** page image ("water — acqua" style lines) | preview lists the page's own pairs verbatim before anything is saved |
 | c | Confirm | deck exists with the previewed cards |
+| d | Provide a Q&A page image instead | with host Apple Intelligence: real AI question/answer cards; without: the orange banner names why the model can't run and Make Cards shows the reason as an error — **no cards are invented either way** |
 
-Screenshot checkpoint: the card preview sheet.
-Sim caveat: Apple Intelligence is unavailable in the simulator, so this always
-exercises the **line-splitter fallback**, never the AI path (that's §3).
+Screenshot checkpoint: the card preview sheets (b, d).
+Sim caveat: whether the AI runs in the simulator depends on the **host Mac** —
+with Apple Intelligence enabled on macOS, the sim proxies the host model and
+the AI paths work (verified 2026-08-31 on this Mac); without it, only the
+paired-vocabulary page yields cards and the AI paths show the unavailability
+reason. Real-hardware behavior is still §3.
 
 ### S3 — Import a shared `.flipstudy` file
 | Step | Action | Must show |
@@ -70,8 +73,11 @@ After S1 and S3: force-quit the app, relaunch → decks, cards, and study
 progress are all still present. Screenshot checkpoint: the shelf after relaunch.
 
 ### What the simulator cannot cover (do not file as bugs)
-- **AI card generation** — the Apple Intelligence model is unavailable in the
-  simulator, so scans always fall back to the line splitter.
+- **AI card generation on a Mac without Apple Intelligence** — the model is
+  only available in the simulator when the host Mac runs Apple Intelligence
+  (the sim proxies the host model). Without it, Type a Subject and the Q&A /
+  plain-list scan paths show the unavailability reason instead of cards, and
+  only the paired-vocabulary scan (deterministic) produces cards in the sim.
 - **StoreKit purchases** — need the `FlipStudy.storekit` configuration attached
   via an Xcode Run, or a sandbox account on a real device; a bare sim launch
   shows no products.
@@ -80,8 +86,8 @@ progress are all still present. Screenshot checkpoint: the shelf after relaunch.
 
 On the physical iPhone:
 
-1. **Scan a real Q&A page with AI** — cards come from the model, not the
-   splitter (answers paraphrased/cleaned, not raw line pairs).
+1. **Scan a real Q&A page with AI** — cards are real question/answer pairs
+   from the model (answers paraphrased/cleaned, not raw OCR lines).
 2. **Scan a vocab list** — backs come out translated into the deck's answer
    language.
 3. **Purchases** — sandbox purchase completes; Restore Purchase restores it.
@@ -94,8 +100,8 @@ On the physical iPhone:
 
 | Limitation | Detail |
 |---|---|
-| AI needs matching iPhone + Siri language | Apple Intelligence refuses when device and Siri languages differ — the English (Ireland) incident. Fix is in Settings, not in the app. |
-| No Apple Intelligence → splitter | Devices without Apple Intelligence (and all simulators) always get the line-splitter fallback; scans still work, just dumber. |
+| AI needs matching iPhone + Siri language | Apple Intelligence refuses when device and Siri languages differ — the English (Ireland) incident. The fix is in Settings, not in the app; since 1.5 the app at least *says so* ("Check that your iPhone and Siri languages match") instead of silently degrading. |
+| No Apple Intelligence → no smart features | Since 1.5, hardware that can't run Apple Intelligence doesn't see Type a Subject or Scan a Page at all; there is no dumbed-down scan mode. Manual decks, studying, and sharing work everywhere. |
 | `.flipstudy` doesn't launch from Files | Tapping a `.flipstudy` file in Files does not yet open FlipStudy; import must start from a share sheet into the app. |
 
 ## Release record
@@ -106,6 +112,8 @@ On the physical iPhone:
 | 2026-08-04 | 1.4 (7) | 1 | L1 green — 6 suites (adds VocabPairDetectorTests), 0 failures. Uploaded to App Store Connect ("Upload succeeded"). | Carries the paired-vocab detector and the OCR replace/pre-clean fixes. Build 6 was rejected at upload: it was still labeled 1.3, and 1.3 had been **approved** while we worked — an approved version is closed to new builds. On-device pass (§3) still owed before submitting for review. |
 | 2026-08-04 | 1.4 (9) | 1 | L1 green — 7 suites (adds TextLayoutTests), 0 failures. Uploaded and attached to the 1.4 version in App Store Connect. Release build confirmed on simulator with Pro **locked**, proving criterion 22 (the Debug unlock is compiled out). | **The build that ships 1.4.** Builds 7 and 8 were both uploaded before the TextRecognizer fixes landed at 14:13, so neither contained multi-language OCR or wrapped-line rejoining — the two headline items in the release notes. Always check what a build predates before attaching it. Submission still blocked on the IAP review screenshot, which must be uploaded by hand. |
 | 2026-08-04 | 1.4 (10) | 1 | L1 green — 8 suites, 0 failures. Installed on the physical iPhone and uploaded to App Store Connect. | **The build that ships.** Folds the card verifier and the edge-quote fix into 1.4 rather than splitting a 1.5 — 1.4 was still a draft, so there was no reason to submit twice. Reported from a scanned Italian list: `<<Io - I` reached a card with the guillemet misread intact. |
+| 2026-08-31 | 1.5 (dev) | 1; 2 (S2) | L1 green — 7 suites, 60 tests, 0 failures (CardGeneratorTests deleted with the splitter). S2 in sim, Debug/Pro: both smart features in the New Deck menu; Q&A page → 3 real AI cards (the host Mac's model proxied into the sim — the sim caveat is host-dependent, not absolute); paired-vocab page → its 6 pairs verbatim, Italian auto-detected; no deck created. | First pass of the AI-only scan gating: fallback generators deleted, AI failures surface as plain-language errors. |
+| 2026-08-31 | 1.5 (dev) | 3 (partial, via iPhone Mirroring) | On the physical iPhone 17 (Debug build 11, installed via devicectl, driven over iPhone Mirroring with CGEvent taps): New Deck menu shows both smart features on eligible hardware; Type a Subject "Ordering dinner in Italy" → 11 cards, English fronts, on-device-translated Italian backs, deck created and persisted; Scan a Deck sheet opens with no unavailability banner and the 1.5 copy. | Still owed by hand: camera scan of a real page (Mirroring blocks the camera), the Apple-Intelligence-off banner/error check, and the purchase flow (scheme is staged Release + StoreKit config — one ⌘R covers it). |
 |  |  |  |  |  |
 
 ### Before archiving for upload — check the release train

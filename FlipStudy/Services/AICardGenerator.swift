@@ -87,6 +87,35 @@ enum AICardGenerator {
         }
     }
 
+    /// A plain-language message for any error a generation call can throw —
+    /// our own availability/empty errors, or the model's session errors, which
+    /// otherwise surface as developer-speak. There is no fallback generator, so
+    /// this message is the whole outcome and has to tell the user what to do.
+    static func friendlyMessage(for error: Error) -> String {
+        if let generationError = error as? GenerationError {
+            return generationError.errorDescription ?? "The AI couldn't make cards this time."
+        }
+        if let sessionError = error as? LanguageModelSession.GenerationError {
+            switch sessionError {
+            case .exceededContextWindowSize:
+                return "That's more text than the on-device AI can read at once. Scan fewer pages, or trim the text and redo."
+            case .guardrailViolation, .refusal:
+                return "The on-device AI declined to work with this text. Edit the text and try again."
+            case .unsupportedLanguageOrLocale:
+                // The "English (Ireland)" incident: Apple Intelligence refuses
+                // when the device and Siri languages don't match.
+                return "Apple Intelligence doesn't support this language setup. Check that your iPhone and Siri languages match in Settings."
+            case .assetsUnavailable:
+                return GenerationError.modelNotReady.errorDescription ?? "The AI model is still getting ready."
+            case .rateLimited, .concurrentRequests:
+                return "The AI is busy right now. Wait a moment and try again."
+            default:
+                return sessionError.localizedDescription
+            }
+        }
+        return error.localizedDescription
+    }
+
     /// Throws the matching `GenerationError` if the on-device model can't run,
     /// so each entry point shares one availability gate.
     private static func requireAvailable() throws {

@@ -5,10 +5,13 @@ import VisionKit
 import Translation
 
 /// Create a deck by scanning a page (device camera) or picking a photo, running
-/// on-device OCR, then turning the recognized text into draft cards. When the
-/// device can run Apple's on-device model, an AI extractor reads the page into
-/// real question/answer pairs; otherwise it falls back to a deterministic
-/// "Term: definition" line splitter so scanning still works everywhere.
+/// on-device OCR, then turning the recognized text into draft cards. The AI
+/// extractor reads the page into real question/answer pairs — scanning is an
+/// Apple Intelligence feature, gated at the New Deck menu, and there is no
+/// rule-based fallback: when the model can't run or fails, the screen says why
+/// instead of producing junk cards. The one deterministic path kept is a page
+/// that already pairs each term with its translation — those pairs are the
+/// page's own content, taken verbatim.
 ///
 /// Optionally the answers can be translated into another language: the English
 /// question stays on the front and its answer is translated onto the back, so a
@@ -17,10 +20,7 @@ import Translation
 struct PhotoDeckView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Environment(ProStore.self) private var proStore
     @Query private var settingsList: [AppSettings]
-
-    @State private var showingPaywall = false
 
     @State private var title = ""
     @State private var pickerItem: PhotosPickerItem?
@@ -134,9 +134,12 @@ struct PhotoDeckView: View {
                          : "A list of words or phrases to learn. Each becomes a card front, with its translation on the back.")
                 }
 
-                // A Pro user expects AI page reading; if the model can't run
-                // right now, say why instead of silently making splitter cards.
-                if proStore.isPro, let reason = AICardGenerator.unavailableReason {
+                // Scanning is AI-only now. The menu already hides it on
+                // hardware that can never run the model, but availability is
+                // dynamic (Apple Intelligence toggled off, model still
+                // downloading) — so if the model can't run right now, say why
+                // up front rather than failing at Make Cards.
+                if let reason = AICardGenerator.unavailableReason {
                     Section {
                         Label {
                             Text(reason)
@@ -145,26 +148,6 @@ struct PhotoDeckView: View {
                                 .foregroundStyle(.orange)
                         }
                         .font(.callout)
-                    }
-                }
-
-                if showsAIUpsell {
-                    Section {
-                        Button {
-                            showingPaywall = true
-                        } label: {
-                            Label {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Read pages with AI")
-                                        .font(.body.weight(.medium))
-                                    Text("FlipStudy Pro turns scanned text into real question-and-answer cards.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            } icon: {
-                                Image(systemName: "sparkles")
-                            }
-                        }
                     }
                 }
 
@@ -317,10 +300,6 @@ struct PhotoDeckView: View {
                 guard let newItem else { return }
                 Task { await loadPickedImage(newItem) }
             }
-            .sheet(isPresented: $showingPaywall) {
-                PaywallView()
-                    .environment(proStore)
-            }
         }
     }
 
@@ -338,7 +317,7 @@ struct PhotoDeckView: View {
     }
 
     private var captureFootnote: String {
-        "Text is read on your device — nothing leaves your phone. Each line becomes a card you can review and edit."
+        "Text is read on your device — nothing leaves your phone. You review every card before the deck is created."
     }
 
     /// Picker binding that also remembers the choice was the user's own, so
@@ -377,10 +356,15 @@ struct PhotoDeckView: View {
         checkedCards.filter(\.isSuspect).count
     }
 
+    // Pluralized by hand: this footer passes through a String, and automatic
+    // inflection (`^[...](inflect: true)`) only works in string literals —
+    // in a String it reaches the screen as raw markup.
     private var previewFootnote: String {
-        suspectCount == 0
-            ? "These all look right. Swipe a card to delete it before creating the deck."
-            : "^[\(suspectCount) card](inflect: true) looks off — check the ones marked below, or swipe to delete."
+        switch suspectCount {
+        case 0: "These all look right. Swipe a card to delete it before creating the deck."
+        case 1: "1 card looks off — check the one marked below, or swipe to delete."
+        default: "\(suspectCount) cards look off — check the ones marked below, or swipe to delete."
+        }
     }
 
     private func remove(at index: Int) {
@@ -411,20 +395,6 @@ struct PhotoDeckView: View {
         case (.vocabulary, _):
             return "Each English word or phrase stays on the front; its \(answerLanguage.label) translation goes on the back."
         }
-    }
-
-    /// Non-AI vocabulary fallback: one item per useful line, cleaned by the
-    /// same `tidyTerm` guard the AI output goes through, so both paths agree on
-    /// what counts as junk.
-    static func vocabItems(from text: String) -> [String] {
-        var seen = Set<String>()
-        var items: [String] = []
-        for rawLine in text.split(whereSeparator: \.isNewline) {
-            guard let line = AICardGenerator.tidyTerm(String(rawLine)),
-                  seen.insert(line.lowercased()).inserted else { continue }
-            items.append(line)
-        }
-        return items
     }
 
     private func recognize(images: [UIImage]) {
@@ -495,11 +465,14 @@ struct PhotoDeckView: View {
 
     // MARK: - Card extraction
 
-    /// Turn the recognized text into draft cards. When the on-device model is
-    /// available, the AI extractor reads the whole page and writes real
-    /// question/answer pairs. When it isn't (older hardware, Apple Intelligence
-    /// off, or the model returns nothing), fall back to the deterministic line
-    /// splitter so scanning still produces cards.
+    /// Turn the recognized text into draft cards. The AI extractor reads the
+    /// whole page and writes real question/answer pairs (or tidies a vocab
+    /// list). There is deliberately no rule-based fallback: a failure — model
+    /// unavailable, page too long, guardrail refusal, nothing studiable — is
+    /// shown as a plain-language error, never papered over with junk cards
+    /// presented as if the AI wrote them. The exception is a page that already
+    /// pairs terms with translations: those pairs are the page's own content
+    /// and are used verbatim, no model involved.
     private func generateCards() {
         let text = trimmedText
         guard !text.isEmpty, !isGenerating else { return }
@@ -507,63 +480,52 @@ struct PhotoDeckView: View {
         isGenerating = true
         draftCards = []
         Task {
-            var cards: [(front: String, back: String)]
-            switch pageKind {
-            case .questions:
-                // AI page reading is a Pro feature. Without Pro (or on a device
-                // that can't run the model) fall back to the rule-based line
-                // splitter so scanning still produces cards for everyone.
-                if proStore.isPro {
-                    do {
-                        cards = try await AICardGenerator.makeCards(fromText: text)
-                    } catch {
-                        cards = CardGenerator.cards(from: text)
+            do {
+                let cards: [(front: String, back: String)]
+                switch pageKind {
+                case .questions:
+                    cards = try await AICardGenerator.makeCards(fromText: text)
+                case .vocabulary:
+                    // A page that already pairs terms with translations
+                    // ("Good Morning - Buongiorno") IS the deck — take its
+                    // pairs verbatim, before any model or translator gets a
+                    // chance to second-guess the page.
+                    if let pairs = VocabPairDetector.pairs(from: text) {
+                        pageProvidesPairs = true
+                        if !userChoseLanguage,
+                           let detected = VocabPairDetector.backLanguage(of: pairs) {
+                            answerLanguage = detected
+                        }
+                        cards = pairs
+                    } else {
+                        // The page is a plain list to learn: the AI tidies the
+                        // list, each item becomes a front, and the back is
+                        // filled by translation.
+                        pageProvidesPairs = false
+                        let items = try await AICardGenerator.makeTerms(fromText: text)
+                        cards = items.map { (front: $0, back: $0) }
                     }
-                } else {
-                    cards = CardGenerator.cards(from: text)
                 }
-                // If the AI came back empty, still give the splitter a chance.
-                if cards.isEmpty {
-                    cards = CardGenerator.cards(from: text)
-                }
-            case .vocabulary:
-                // A page that already pairs terms with translations
-                // ("Good Morning - Buongiorno") IS the deck — take its pairs
-                // verbatim, before any model or translator gets a chance to
-                // second-guess the page. Deterministic, so it works for
-                // everyone, Pro or not.
-                if let pairs = VocabPairDetector.pairs(from: text) {
-                    pageProvidesPairs = true
-                    if !userChoseLanguage,
-                       let detected = VocabPairDetector.backLanguage(of: pairs) {
-                        answerLanguage = detected
-                    }
-                    cards = pairs
-                } else {
-                    // The page is a plain list to learn: each item becomes a
-                    // front, and the back is filled by translation. The AI
-                    // only tidies the list; the line parser covers everyone
-                    // else.
-                    pageProvidesPairs = false
-                    var items: [String] = []
-                    if proStore.isPro {
-                        items = (try? await AICardGenerator.makeTerms(fromText: text)) ?? []
-                    }
-                    if items.isEmpty {
-                        items = Self.vocabItems(from: text)
-                    }
-                    cards = items.map { (front: $0, back: $0) }
-                }
-            }
-            englishCards = cards
-            if cards.isEmpty {
-                errorMessage = "Couldn't find any cards in that text."
+                englishCards = cards
+                errorMessage = nil
+                applyTranslation()
+            } catch {
+                englishCards = []
+                errorMessage = Self.scanErrorMessage(for: error)
                 isGenerating = false
-                return
             }
-            errorMessage = nil
-            applyTranslation()
         }
+    }
+
+    /// The message shown when card extraction fails. `empty` gets scan-specific
+    /// wording (the shared message talks about rewording a topic, which makes
+    /// no sense for a photographed page); everything else goes through the
+    /// generator's own plain-language mapping.
+    static func scanErrorMessage(for error: Error) -> String {
+        if case AICardGenerator.GenerationError.empty = error {
+            return "The AI couldn't find anything to study in this text. Edit the text and redo, or scan a different page."
+        }
+        return AICardGenerator.friendlyMessage(for: error)
     }
 
     // MARK: - Answer translation
@@ -659,22 +621,12 @@ struct PhotoDeckView: View {
         isGenerating = false
     }
 
-    /// Footer under the recognized text, describing which extractor will run so
-    /// the user knows what to expect (AI page reading vs. the line splitter).
+    /// Footer under the recognized text, describing what will happen to it.
     private var recognizedFootnote: String {
         if pageKind == .vocabulary {
             return "Each word or phrase above becomes a card. Edit the list and redo if something was misread."
         }
-        if proStore.isPro && AICardGenerator.isAvailable {
-            return "The AI reads this text on your device and writes question-and-answer cards. Edit the text above and redo if the cards need tweaking."
-        }
-        return "Cards are split line-by-line. Use \"Term: definition\" or \"Term — definition\" to split front and back. Edit the text above and redo if needed."
-    }
-
-    /// Whether to show the "upgrade for AI page reading" nudge: the device can
-    /// run the model, but the user hasn't bought Pro yet.
-    private var showsAIUpsell: Bool {
-        !proStore.isPro && AICardGenerator.isDeviceEligible
+        return "The AI reads this text on your device and writes question-and-answer cards. Edit the text above and redo if the cards need tweaking."
     }
 
     private func create() {
