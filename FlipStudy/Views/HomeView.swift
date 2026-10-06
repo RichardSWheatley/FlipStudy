@@ -6,6 +6,7 @@ struct HomeView: View {
     @Environment(\.modelContext) private var context
     @Environment(ProStore.self) private var proStore
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
+    @Query private var settingsList: [AppSettings]
     @State private var showingNewDeck = false
     @State private var showingPhotoDeck = false
     @State private var showingSubjectDeck = false
@@ -20,6 +21,15 @@ struct HomeView: View {
     @State private var showingImporter = false
     @State private var pendingImport: SharedDeck?
     @State private var importError: String?
+
+    private var settings: AppSettings? { settingsList.first }
+
+    /// Whether this user may open the smart features at all. The $0.99 purchase
+    /// is one way in; a redeemed family code is the other, and family members
+    /// shouldn't have to buy what they were already given.
+    private var hasSmartAccess: Bool {
+        proStore.isPro || CardEngine.cloudUnlocked(settings)
+    }
 
     var body: some View {
         NavigationStack {
@@ -134,34 +144,34 @@ struct HomeView: View {
 
     @ViewBuilder
     private var newDeckMenuItems: some View {
-        // The smart features — "Type a Subject" and "Scan a Page" — are
-        // on-device-AI only. Hide them on hardware that can never run Apple
+        // The smart features — "Type a Subject" and "Scan a Page" — need an AI
+        // that can actually run. Hide them on hardware that can never run Apple
         // Intelligence (e.g. a base iPhone 15) so we don't offer buttons that
-        // always fail; capable devices still see them and are guided to
-        // enable/download the model inside the sheet. Both are Pro features:
-        // non-Pro users get the paywall, and buying it drops them straight
-        // into the screen they wanted.
-        if AICardGenerator.isDeviceEligible {
+        // always fail — unless a family code is redeemed, which brings its own
+        // engine and makes them work on any iPhone. Both are Pro features:
+        // users with neither Pro nor a code get the paywall, and buying it
+        // drops them straight into the screen they wanted.
+        if CardEngine.isOfferable(settings) {
             Button {
-                if proStore.isPro {
+                if hasSmartAccess {
                     showingSubjectDeck = true
                 } else {
                     paywallDestination = .typeSubject
                     showingPaywall = true
                 }
             } label: {
-                Label(proStore.isPro ? "Type a Subject" : "Type a Subject (Pro)",
+                Label(hasSmartAccess ? "Type a Subject" : "Type a Subject (Pro)",
                       systemImage: "sparkles")
             }
             Button {
-                if proStore.isPro {
+                if hasSmartAccess {
                     showingPhotoDeck = true
                 } else {
                     paywallDestination = .scanPage
                     showingPaywall = true
                 }
             } label: {
-                Label(proStore.isPro ? "Scan a Page" : "Scan a Page (Pro)",
+                Label(hasSmartAccess ? "Scan a Page" : "Scan a Page (Pro)",
                       systemImage: "doc.viewfinder")
             }
         }

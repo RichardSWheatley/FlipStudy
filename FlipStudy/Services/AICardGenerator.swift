@@ -337,7 +337,7 @@ enum AICardGenerator {
     /// Reject text that the language detector is confident is *not* English.
     /// Short strings are easy to misjudge, so we only drop an item when another
     /// language clearly dominates — otherwise we keep it to avoid false drops.
-    private static func isProbablyEnglish(_ text: String) -> Bool {
+    static func isProbablyEnglish(_ text: String) -> Bool {
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
         let hypotheses = recognizer.languageHypotheses(withMaximum: 3)

@@ -64,7 +64,7 @@ struct PaywallView: View {
                        detail: "Point the camera at a worksheet or word list and the AI reads it into real flashcards.")
             FeatureRow(icon: "lock.shield",
                        title: "Private by design",
-                       detail: "Everything is generated on your device. No accounts, no servers, nothing to leak.")
+                       detail: "Apple Intelligence runs right on your iPhone. No accounts, no tracking, nothing to leak.")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

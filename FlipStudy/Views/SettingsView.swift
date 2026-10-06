@@ -11,10 +11,14 @@ struct SettingsView: View {
 
     @State private var showingPaywall = false
     @State private var isRestoring = false
-    @State private var showingParentGate = false
-    /// What to do once the grown-up gate is passed — enabling Cloud AI, or
-    /// selecting a specific cloud engine.
-    @State private var pendingUnlock: (() -> Void)?
+    @State private var showingFamilyCode = false
+    /// The pending grown-up check: what it is for, and what to do once it
+    /// passes. Carried as one value rather than a flag plus separate state
+    /// because `.sheet(isPresented:)` builds its body from what SwiftUI already
+    /// has — setting a purpose and raising the flag in the same action could
+    /// still present the *previous* purpose, which asked permission for the
+    /// wrong thing. `.sheet(item:)` is always built from the item.
+    @State private var parentGate: ParentGateRequest?
     @State private var apiKey = ""
     /// When true the API key is shown as plain text so a grown-up can verify the
     /// exact characters. A masked SecureField hides paste corruption (truncation,
@@ -32,6 +36,23 @@ struct SettingsView: View {
     }
 
     private var settings: AppSettings? { settingsList.first }
+
+    /// Reflects the "stay on this phone" preference for cloud-unlocked users.
+    private var onDeviceBinding: Binding<Bool> {
+        Binding(
+            get: { settings?.prefersOnDeviceCards ?? false },
+            set: { settings?.prefersOnDeviceCards = $0 }
+        )
+    }
+
+    private var cloudCardsFootnote: String {
+        guard CardEngine.cloudUnlocked(settings) else {
+            return "FlipStudy Cloud makes cards with a much larger AI than this phone can hold, and works even on iPhones without Apple Intelligence. It needs a family code. A grown-up has to enter it."
+        }
+        return settings?.prefersOnDeviceCards == true
+            ? "Cards are being made on this phone, so no text is sent anywhere. Turn this off to use FlipStudy Cloud again."
+            : "Cards are made by FlipStudy Cloud. The text you scan or type is sent over an encrypted connection to make them, and isn't stored there."
+    }
 
     var body: some View {
         NavigationStack {
@@ -70,6 +91,47 @@ struct SettingsView: View {
                     Text(proStore.isPro
                          ? "Thanks! On-device AI decks and smart page scanning are turned on."
                          : "A one-time purchase unlocks the on-device Apple Intelligence features: AI decks from a typed subject, and smart question-and-answer scanning.")
+                }
+
+                Section {
+                    if CardEngine.cloudUnlocked(settings) {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("FlipStudy Cloud is on")
+                                if let label = settings?.cloudCardsLabel, !label.isEmpty {
+                                    Text(label)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        } icon: {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundStyle(.green)
+                        }
+                        Toggle("Make cards on this phone instead", isOn: onDeviceBinding)
+                        Button(role: .destructive) {
+                            // Only this phone loses access; the code itself
+                            // stays valid for everyone else it was given to.
+                            FamilyAccess.signOut()
+                            settings?.cloudCardsEnabled = false
+                            settings?.cloudCardsLabel = ""
+                            settings?.prefersOnDeviceCards = false
+                        } label: {
+                            Text("Remove Code")
+                        }
+                    } else {
+                        Button {
+                            parentGate = ParentGateRequest(purpose: "turn on FlipStudy Cloud") {
+                                showingFamilyCode = true
+                            }
+                        } label: {
+                            Label("Enter Family Code", systemImage: "qrcode.viewfinder")
+                        }
+                    }
+                } header: {
+                    Text("FlipStudy Cloud")
+                } footer: {
+                    Text(cloudCardsFootnote)
                 }
 
                 Section {
@@ -169,15 +231,18 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .sheet(isPresented: $showingParentGate) {
-                ParentGateView {
-                    pendingUnlock?()
-                    pendingUnlock = nil
-                }
+            .sheet(item: $parentGate) { request in
+                ParentGateView(purpose: request.purpose, onSuccess: request.unlock)
             }
             .sheet(isPresented: $showingPaywall) {
                 PaywallView()
                     .environment(proStore)
+            }
+            .sheet(isPresented: $showingFamilyCode) {
+                FamilyCodeView { label in
+                    settings?.cloudCardsEnabled = true
+                    settings?.cloudCardsLabel = label
+                }
             }
             .onAppear {
                 ensureSettings()
@@ -253,11 +318,10 @@ struct SettingsView: View {
             set: { newValue in
                 guard let settings else { return }
                 if newValue.isCloud && !settings.cloudAIEnabled {
-                    pendingUnlock = {
+                    parentGate = ParentGateRequest(purpose: "turn on a cloud translator") {
                         settings.cloudAIEnabled = true
                         settings.translationProvider = newValue
                     }
-                    showingParentGate = true
                 } else {
                     settings.translationProvider = newValue
                 }
@@ -272,8 +336,9 @@ struct SettingsView: View {
             get: { settings?.cloudAIEnabled ?? false },
             set: { newValue in
                 if newValue {
-                    pendingUnlock = { settings?.cloudAIEnabled = true }
-                    showingParentGate = true
+                    parentGate = ParentGateRequest(purpose: "turn on a cloud translator") {
+                        settings?.cloudAIEnabled = true
+                    }
                 } else {
                     settings?.cloudAIEnabled = false
                     // Fall back to the free on-device engine when cloud is off.
@@ -300,8 +365,20 @@ struct SettingsView: View {
 /// A lightweight "ask a grown-up" gate: solve a multiplication problem that's
 /// beyond a young child. Not real security — just a speed bump before enabling
 /// an online feature, matching common kids-app practice.
+/// A pending grown-up check — what it's guarding, and what to do once it's
+/// passed.
+private struct ParentGateRequest: Identifiable {
+    let id = UUID()
+    let purpose: String
+    let unlock: () -> Void
+}
+
 private struct ParentGateView: View {
     @Environment(\.dismiss) private var dismiss
+    /// What the grown-up is being asked to allow — the gate guards both the
+    /// cloud translator and FlipStudy Cloud, and naming the wrong one reads as
+    /// the app asking permission for something it isn't about to do.
+    var purpose: String = "turn on a cloud translator"
     let onSuccess: () -> Void
 
     @State private var first = Int.random(in: 6...9)
@@ -331,7 +408,7 @@ private struct ParentGateView: View {
                 } header: {
                     Text("Grown-Up Check")
                 } footer: {
-                    Text("Ask a grown-up to solve this to turn on a cloud translator.")
+                    Text("Ask a grown-up to solve this to \(purpose).")
                 }
             }
             .navigationTitle("Grown-Up Check")

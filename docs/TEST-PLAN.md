@@ -28,6 +28,15 @@ xcodebuild test -project FlipStudy.xcodeproj -scheme FlipStudy -destination 'pla
 - `FlipStudyTests/PageKindDetectionTests.swift` — a scanned page is correctly classified (Q&A page vs vocab list vs plain notes), which decides the generation path.
 - `FlipStudyTests/DeckTransferTests.swift` — a deck encodes to `.flipstudy` and decodes back with nothing lost or reordered (the share/import round-trip).
 - `FlipStudyTests/AnswerLanguageTests.swift` — the answer/translation language for vocab card backs is chosen correctly from the deck and device settings.
+- `FlipStudyTests/FamilyCodeTests.swift` — a FlipStudy Cloud code is parsed the same whether typed or scanned, junk is rejected, and the engine stays on-device without one.
+
+The Worker has its own check, which must pass before handing out any code —
+it catches the case where the app and the minting script disagree about hashing,
+which looks exactly like a typo'd code:
+
+```bash
+cd worker && node scripts/verify-hash.mjs
+```
 
 Definition of done for any logic change: new/changed behavior has a test here,
 and the suite is green.
@@ -72,6 +81,22 @@ Screenshot checkpoint: the import preview.
 After S1 and S3: force-quit the app, relaunch → decks, cards, and study
 progress are all still present. Screenshot checkpoint: the shelf after relaunch.
 
+### S5 — FlipStudy Cloud family code
+| Step | Action | Must show |
+|---|---|---|
+| a | Settings with no code | "FlipStudy Cloud" section offers **Enter Family Code** and nothing else |
+| b | Tap it | the grown-up gate appears *before* the code screen |
+| c | Enter a wrong code | a plain-language rejection; cloud stays off |
+| d | Enter a real code | section shows "FlipStudy Cloud is on" and the code's label |
+| e | Scan a Page / Type a Subject | cards are generated, and the footers say FlipStudy Cloud made them |
+| f | Turn on "Make cards on this phone instead" | footers return to the on-device wording; in the simulator the unavailability banner reappears |
+| g | Remove Code | section returns to (a); the smart features gate as they did in 1.5 |
+
+Screenshot checkpoint: (a), (d), and a generated preview from (e).
+Sim caveat: QR scanning needs real hardware (`DataScannerViewController`), so
+the **Scan QR Code** button is hidden in the simulator — type the code there and
+test the QR path on the phone.
+
 ### What the simulator cannot cover (do not file as bugs)
 - **AI card generation on a Mac without Apple Intelligence** — the model is
   only available in the simulator when the host Mac runs Apple Intelligence
@@ -95,6 +120,11 @@ On the physical iPhone:
    `.flipstudy` file and verify the cards.
 5. **Fresh install** — delete the app, reinstall, confirm permission prompts
    (camera/photos) show the kid-friendly copy and denying leaves the app usable.
+6. **Scan a family code's QR** — the printed/texted QR redeems without typing.
+7. **Cloud on an ineligible iPhone** — on hardware without Apple Intelligence, a
+   redeemed code makes the smart features work; removing it hides them again.
+8. **Cloud failure modes** — airplane mode mid-request, and a code whose daily
+   quota is spent, both show a plain-language reason and produce no cards.
 
 ## Known limitations
 
@@ -102,6 +132,7 @@ On the physical iPhone:
 |---|---|
 | AI needs matching iPhone + Siri language | Apple Intelligence refuses when device and Siri languages differ — the English (Ireland) incident. The fix is in Settings, not in the app; since 1.5 the app at least *says so* ("Check that your iPhone and Siri languages match") instead of silently degrading. |
 | No Apple Intelligence → no smart features | Since 1.5, hardware that can't run Apple Intelligence doesn't see Type a Subject or Scan a Page at all; there is no dumbed-down scan mode. Manual decks, studying, and sharing work everywhere. |
+| FlipStudy Cloud needs the internet | The cloud engine is the one flow that cannot work offline. Airplane-mode testing (criterion 21) applies to the on-device path, which is still the default for everyone without a code. |
 | `.flipstudy` doesn't launch from Files | Tapping a `.flipstudy` file in Files does not yet open FlipStudy; import must start from a share sheet into the app. |
 
 ## Release record

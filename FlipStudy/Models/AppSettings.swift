@@ -28,11 +28,32 @@ final class AppSettings {
     /// existed.
     var cloudTranslationRegion: String = ""
 
+    /// Whether a FlipStudy Cloud family code has been redeemed on this phone.
+    /// The token itself lives in the Keychain (`FamilyAccess`); this flag is
+    /// the part views read, so SwiftUI redraws the moment a code is entered.
+    /// Declaration defaults let SwiftData backfill stores made before these
+    /// properties existed.
+    var cloudCardsEnabled: Bool = false
+
+    /// Which code is in use ("Sam's iPhone"), shown in Settings so a parent can
+    /// tell at a glance whose access this is.
+    var cloudCardsLabel: String = ""
+
+    /// Set when the user would rather keep making cards on the phone even
+    /// though cloud is unlocked. A privacy choice, so it is never overridden.
+    var prefersOnDeviceCards: Bool = false
+
     init(cloudAIEnabled: Bool = false,
          translationProviderRaw: String = TranslationProvider.apple.rawValue,
-         cloudTranslationRegion: String = "") {
+         cloudTranslationRegion: String = "",
+         cloudCardsEnabled: Bool = false,
+         cloudCardsLabel: String = "",
+         prefersOnDeviceCards: Bool = false) {
         self.cloudAIEnabled = cloudAIEnabled
         self.translationProviderRaw = translationProviderRaw
         self.cloudTranslationRegion = cloudTranslationRegion
+        self.cloudCardsEnabled = cloudCardsEnabled
+        self.cloudCardsLabel = cloudCardsLabel
+        self.prefersOnDeviceCards = prefersOnDeviceCards
     }
 }

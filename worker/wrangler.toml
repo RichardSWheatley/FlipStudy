@@ -1,0 +1,24 @@
+name = "flipstudy-cards"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# Workers AI. This binding is why the phone never needs a Cloudflare token.
+[ai]
+binding = "AI"
+
+# Fill the three ids in after `npm run setup` (see README).
+[[kv_namespaces]]
+binding = "CODES"
+id = "e23ad64a5de242f08be17ba8f3dacdf7"
+
+[[kv_namespaces]]
+binding = "TOKENS"
+id = "0baba2d29ec14f8390000d472e503d69"
+
+[[kv_namespaces]]
+binding = "USAGE"
+id = "c27e1309bd6544949bf214cc1871c25f"
+
+[vars]
+# Default per-code daily request cap. A single code can override it.
+MAX_DAILY_REQUESTS = "50"

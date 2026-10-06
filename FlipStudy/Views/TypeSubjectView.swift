@@ -47,6 +47,10 @@ struct TypeSubjectView: View {
 
     private var settings: AppSettings? { settingsList.first }
 
+    /// Which AI drafts the cards — the phone's own, or FlipStudy Cloud when a
+    /// family code is redeemed.
+    private var engine: CardEngine { CardEngine.active(for: settings) }
+
     /// A translation deck is made whenever the two languages differ.
     private var needsTranslation: Bool { baseLanguage != targetLanguage }
 
@@ -110,7 +114,7 @@ struct TypeSubjectView: View {
                     Text(generatorFootnote)
                 }
 
-                if let unavailable = AICardGenerator.unavailableReason {
+                if let unavailable = engine.unavailableReason {
                     Section {
                         Label(unavailable, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.secondary)
@@ -171,9 +175,14 @@ struct TypeSubjectView: View {
 
     private var generatorFootnote: String {
         if needsTranslation {
-            return "The AI writes the ideas in English on your device, then \(provider.label) translates the front to \(baseLanguage.label) and the back to \(targetLanguage.label). Review them below before you create the deck."
+            return "The AI writes the ideas in English \(engine.label), then \(provider.label) translates the front to \(baseLanguage.label) and the back to \(targetLanguage.label). Review them below before you create the deck."
         }
-        return "Cards are made on your device — free and private. Review them below before you create the deck."
+        switch engine {
+        case .onDevice:
+            return "Cards are made on your device — free and private. Review them below before you create the deck."
+        case .cloud:
+            return "Cards are made by FlipStudy Cloud: your topic is sent over an encrypted connection to write them. Review them below before you create the deck."
+        }
     }
 
     // MARK: - Generation
@@ -197,12 +206,12 @@ struct TypeSubjectView: View {
     private func generateQA(topic requestedTopic: String) {
         Task {
             do {
-                let cards = try await AICardGenerator.makeCards(topic: requestedTopic)
+                let cards = try await engine.makeCards(topic: requestedTopic)
                 draftCards = cards
                 if trimmedTitle.isEmpty { title = requestedTopic }
             } catch {
                 draftCards = []
-                errorMessage = error.localizedDescription
+                errorMessage = CardEngine.friendlyMessage(for: error)
             }
             hasGenerated = true
             isGenerating = false
@@ -215,7 +224,7 @@ struct TypeSubjectView: View {
     private func generateTranslated(topic requestedTopic: String) {
         Task {
             do {
-                let concepts = try await AICardGenerator.makeConcepts(topic: requestedTopic, style: deckStyle)
+                let concepts = try await engine.makeConcepts(topic: requestedTopic, style: deckStyle)
                 englishConcepts = concepts
                 if trimmedTitle.isEmpty { title = requestedTopic }
 
@@ -326,7 +335,7 @@ struct TypeSubjectView: View {
 
     private func fail(_ error: Error) {
         draftCards = []
-        errorMessage = error.localizedDescription
+        errorMessage = CardEngine.friendlyMessage(for: error)
         hasGenerated = true
         isGenerating = false
     }

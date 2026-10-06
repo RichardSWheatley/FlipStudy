@@ -10,6 +10,7 @@ by the release that introduced it.*
 |---|---|---|---|
 | 1.3 | 4 | Approved, ready for distribution | The Pro release: $0.99 purchase gating on-device AI, two-mode Scan a Page, `.flipstudy` deck sharing, per-engine cloud keys. Criteria 1–22. |
 | 1.4 | 10 | Prepare for submission (awaiting IAP review screenshot) | The scan quality release, shipped as one version: paired-vocabulary pages used verbatim, multi-language OCR, wrapped-line rejoining, per-capture text replacement, 24-card cap, edge-quote cleanup, and the pre-save card check. Criteria 23–34. |
+| 1.6 | 13 | In development | FlipStudy Cloud: a code-gated Cloudflare engine that makes cards on hardware Apple Intelligence can't reach. Family codes only (typed or scanned as a QR), behind the grown-up gate. Criteria 38–43. |
 | 1.5 | 12 | First build headed to App Store Connect | The AI-only release: Scan a Page joins Type a Subject behind Apple Intelligence + Pro; the line-splitter and vocab line-parse fallbacks are deleted, and AI failures surface as plain-language errors instead of junk cards. Criteria 35–37; retires 1, 2, 4, 12, 13, 26. |
 
 ## Purpose
@@ -82,6 +83,31 @@ run showed those bad cards as if the AI had written them. So:
   unavailability reason. Real-hardware behavior is still proven on-device
   (TEST-PLAN §3).
 
+## What 1.6 adds
+
+1.5 made the smart features Apple Intelligence-only, which is right for quality
+but leaves older iPhones with nothing. FlipStudy Cloud is the answer for the
+people we choose to give it to — today that is family, later a paid tier.
+
+- **A code is the only door.** With no redeemed code the app is byte-for-byte
+  the behavior of 1.5: Apple Intelligence or a plain-language reason why not.
+  There is no cloud discovery, no trial, no silent upgrade.
+- **The app ships no Cloudflare credentials.** A code is exchanged for a device
+  token; the Worker is the only thing that can spend AI credits. Codes are
+  stored hashed, bound to a capped number of devices, and revocable per device
+  or outright.
+- **Codes arrive two ways:** typed in, or scanned from a QR. Both normalize to
+  the same string the Worker hashes (`FlipStudyTests/FamilyCodeTests.swift`,
+  `worker/scripts/verify-hash.mjs`).
+- **A code also grants Pro access.** Family members shouldn't have to buy what
+  they were handed; `hasSmartAccess` is `isPro || cloudUnlocked`.
+- **The privacy claim tracks the engine.** Copy that said "nothing leaves your
+  phone" now says what actually happens on the path in use, and PRIVACY.md
+  documents FlipStudy Cloud in full.
+- **Still no silent fallback.** A cloud failure — offline, quota spent, text too
+  long, code revoked — is reported in plain language. Neither engine ever
+  rescues the other with worse cards.
+
 ## Acceptance criteria
 
 | # | Criterion (verifiable behavior) | Proven by |
@@ -116,6 +142,13 @@ run showed those bad cards as if the AI had written them. So:
 | 28 | A sentence that wraps across visual lines is rejoined into one block before the extractor sees it, so questions arrive whole rather than as fragments | `FlipStudyTests/TextLayoutTests.swift` |
 | 29 | Rejoining never glues separate entries together: a page of uniformly short lines (a vocabulary list) keeps one entry per line, and terminal punctuation or a paragraph gap always ends a block | `FlipStudyTests/TextLayoutTests.swift` |
 | 30 | A scanned page yields up to 24 cards rather than being silently truncated at 12 | on-device (scan a dense worksheet; card count reflects the page) |
+
+| 38 | With no redeemed code the app behaves exactly as 1.5 did: on ineligible hardware the New Deck menu hides both smart features, and no network call is ever made | simulator scenario |
+| 39 | A family code is accepted typed or scanned from a QR, in any case, with or without separators, and whether the QR holds the bare code or a link carrying it; anything else is rejected before a request is sent | `FlipStudyTests/FamilyCodeTests.swift` |
+| 40 | The app and the minting script hash a code to the same value, including the condensed form the app actually sends | `worker/scripts/verify-hash.mjs` |
+| 41 | Redeeming a code requires passing the grown-up gate first, and Remove Code revokes only this phone | simulator scenario |
+| 42 | With a code active, the smart features appear and work on hardware that cannot run Apple Intelligence, and "Make cards on this phone instead" returns to the on-device engine (and its unavailability message) without sending anything | on-device |
+| 43 | Every cloud failure — offline, quota spent, oversized text, revoked code — shows a plain-language reason and never produces cards | simulator scenario + on-device |
 
 Every criterion above is checkable; none is a vision statement. Rows 1–10 are
 deterministic unit tests in `FlipStudyTests`; simulator scenarios run in the

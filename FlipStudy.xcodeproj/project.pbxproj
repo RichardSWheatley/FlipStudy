@@ -306,12 +306,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 2X96YGT8DD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards, and to scan a family code.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FlipStudy uses the microphone so you can practice saying your answers out loud.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "FlipStudy reads text from photos you choose to create study cards.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "FlipStudy adds a reminder to your Reminders so you remember to study.";
@@ -326,7 +326,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipstudy.app;
 				PRODUCT_NAME = "FlipStudy: Flashcards";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -341,12 +341,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 2X96YGT8DD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards, and to scan a family code.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FlipStudy uses the microphone so you can practice saying your answers out loud.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "FlipStudy reads text from photos you choose to create study cards.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "FlipStudy adds a reminder to your Reminders so you remember to study.";
@@ -361,7 +361,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipstudy.app;
 				PRODUCT_NAME = "FlipStudy: Flashcards";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -375,11 +375,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 2X96YGT8DD;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipstudy.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -396,11 +396,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = 2X96YGT8DD;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipstudy.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

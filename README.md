@@ -19,6 +19,10 @@ with your own API key.
   the deck is created. Like Type a Subject, this needs Apple Intelligence —
   there's no dumbed-down mode; a page that can't be read well isn't turned into
   bad cards.
+- **FlipStudy Cloud** *(family codes only)* — an optional engine that makes
+  cards with a much larger AI than an iPhone can hold, so the smart features
+  work even on hardware without Apple Intelligence. Off unless a family code is
+  redeemed; see [worker/README.md](worker/README.md).
 - **Add cards by hand** — a simple front/back editor, with optional AI
   translation of the answer.
 - **Card styles** — single words, phrases & sentences, or **sentence starters**
@@ -61,6 +65,9 @@ FlipStudy/
     AppSettings.swift       User settings (cloud AI, translation provider)
   Services/
     AICardGenerator.swift   On-device card/concept generation (FoundationModels)
+    CloudCardGenerator.swift Card generation via FlipStudy Cloud (code-gated)
+    CardEngine.swift        Picks the engine; one API over both
+    FamilyAccess.swift      Family-code redemption; device token (Keychain)
     Translator.swift        Apple + optional cloud translation; deck styles
     TextRecognizer.swift    OCR of scanned pages (Vision)
     Speech.swift            Text-to-speech of answers (AVSpeechSynthesizer)
@@ -72,6 +79,8 @@ FlipStudy/
     TypeSubjectView.swift   Make a deck from a typed topic
     PhotoDeckView.swift     Make a deck from a scanned page
     DocumentScanner.swift   Camera document capture
+    FamilyCodeView.swift    Enter or scan a FlipStudy Cloud code
+    QRCodeScanner.swift     QR capture for family codes
     DeckDetailView.swift    A deck's cards and study button
     CardEditorView.swift    Add / edit a card
     StudyView.swift         The study session (flip, speak, grade)
@@ -91,4 +100,5 @@ FlipStudy/
 ## Tech
 
 Swift 6 · SwiftUI · SwiftData · FoundationModels · Translation · NaturalLanguage
-· Vision · AVFoundation · Speech · EventKit
+· Vision · AVFoundation · Speech · EventKit — plus a Cloudflare Worker
+(Workers AI) for the optional, code-gated FlipStudy Cloud engine.

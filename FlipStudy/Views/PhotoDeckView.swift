@@ -73,6 +73,11 @@ struct PhotoDeckView: View {
 
     private var settings: AppSettings? { settingsList.first }
 
+    /// Which AI reads the page: the phone's own, or FlipStudy Cloud when a
+    /// family code is redeemed. Chosen per render so redeeming (or switching
+    /// back) in Settings takes effect immediately.
+    private var engine: CardEngine { CardEngine.active(for: settings) }
+
     private var provider: TranslationProvider {
         settings?.translationProvider ?? .apple
     }
@@ -139,7 +144,7 @@ struct PhotoDeckView: View {
                 // dynamic (Apple Intelligence toggled off, model still
                 // downloading) — so if the model can't run right now, say why
                 // up front rather than failing at Make Cards.
-                if let reason = AICardGenerator.unavailableReason {
+                if let reason = engine.unavailableReason {
                     Section {
                         Label {
                             Text(reason)
@@ -317,7 +322,15 @@ struct PhotoDeckView: View {
     }
 
     private var captureFootnote: String {
-        "Text is read on your device — nothing leaves your phone. You review every card before the deck is created."
+        // The privacy claim has to track the engine. Reading the page is always
+        // on-device (Vision); only the recognized text travels, and only when
+        // FlipStudy Cloud is the one writing the cards.
+        switch engine {
+        case .onDevice:
+            return "Text is read on your device — nothing leaves your phone. You review every card before the deck is created."
+        case .cloud:
+            return "Text is read on your device, then sent to FlipStudy Cloud to make the cards. You review every card before the deck is created."
+        }
     }
 
     /// Picker binding that also remembers the choice was the user's own, so
@@ -484,7 +497,7 @@ struct PhotoDeckView: View {
                 let cards: [(front: String, back: String)]
                 switch pageKind {
                 case .questions:
-                    cards = try await AICardGenerator.makeCards(fromText: text)
+                    cards = try await engine.makeCards(fromText: text)
                 case .vocabulary:
                     // A page that already pairs terms with translations
                     // ("Good Morning - Buongiorno") IS the deck — take its
@@ -502,7 +515,7 @@ struct PhotoDeckView: View {
                         // list, each item becomes a front, and the back is
                         // filled by translation.
                         pageProvidesPairs = false
-                        let items = try await AICardGenerator.makeTerms(fromText: text)
+                        let items = try await engine.makeTerms(fromText: text)
                         cards = items.map { (front: $0, back: $0) }
                     }
                 }
@@ -525,7 +538,7 @@ struct PhotoDeckView: View {
         if case AICardGenerator.GenerationError.empty = error {
             return "The AI couldn't find anything to study in this text. Edit the text and redo, or scan a different page."
         }
-        return AICardGenerator.friendlyMessage(for: error)
+        return CardEngine.friendlyMessage(for: error)
     }
 
     // MARK: - Answer translation
@@ -626,7 +639,12 @@ struct PhotoDeckView: View {
         if pageKind == .vocabulary {
             return "Each word or phrase above becomes a card. Edit the list and redo if something was misread."
         }
-        return "The AI reads this text on your device and writes question-and-answer cards. Edit the text above and redo if the cards need tweaking."
+        switch engine {
+        case .onDevice:
+            return "The AI reads this text on your device and writes question-and-answer cards. Edit the text above and redo if the cards need tweaking."
+        case .cloud:
+            return "FlipStudy Cloud reads this text and writes question-and-answer cards. Edit the text above and redo if the cards need tweaking."
+        }
     }
 
     private func create() {
