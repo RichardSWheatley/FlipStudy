@@ -24,6 +24,8 @@ const MAX_INPUT_CHARS = 6000;
 const MAX_TOPIC_CHARS = 200;
 /** Ceiling on how many items we will ever ask for, whatever the client sends. */
 const MAX_COUNT = 30;
+/** Room for a full page of cards. Comfortably above 30 cards of prose. */
+const MAX_OUTPUT_TOKENS = 4096;
 
 const CARDS_SCHEMA = {
   type: "object",
@@ -63,13 +65,17 @@ leave out page furniture like headers, page numbers, and stray fragments.
 Never invent facts that aren't supported by the text. If the text has no
 studiable content, return no cards.`,
 
-  terms: `You clean up vocabulary lists captured by OCR from pages and screenshots.
-The student already chose these words and phrases — your only job is to
-return them as a tidy list. Never answer, define, translate, or expand an
-item, and never invent new ones. Be strict about what counts as vocabulary:
-app names, button labels, menu items, status-bar times and numbers, and
-stray OCR fragments are never vocabulary, and a garbled token you cannot
-confidently restore to a real word is dropped, not kept.`,
+  vocab: `You extract vocabulary from a page captured by OCR. The student already
+chose these words — your job is to return them, not to teach them. Never
+translate, define, or expand an item yourself, and never invent new ones.
+
+If the page gives each word's translation or meaning beside it, return that
+pairing exactly as the page wrote it. If the page is a plain list with nothing
+beside each word, return the word with an empty back. Be strict about what
+counts as vocabulary: app names, button labels, menu items, status-bar times
+and numbers, page furniture and stray OCR fragments are never vocabulary, and a
+garbled token you cannot confidently restore to a real word is dropped, not
+kept.`,
 
   topic: `You are a helpful study assistant that writes clear, accurate flashcards.
 Fronts are brief terms or questions. Backs are short, correct answers or
@@ -159,6 +165,12 @@ async function runModel(env, system, user, schema) {
       { role: "user", content: user },
     ],
     response_format: { type: "json_schema", json_schema: schema },
+    // Workers AI defaults to a small output budget. A full page of cards blows
+    // straight past it, and the reply comes back as JSON cut off mid-structure
+    // — which fails to parse and surfaces as a mystifying "had a problem
+    // making these cards". This is a ceiling, not a reservation: neurons are
+    // billed on what the model actually generates.
+    max_tokens: MAX_OUTPUT_TOKENS,
   });
 
   // Workers AI returns the structured payload under `response`, sometimes
@@ -190,13 +202,13 @@ function buildPrompt(body) {
       };
     }
 
-    case "terms": {
+    case "vocab": {
       const text = String(body.text || "").slice(0, MAX_INPUT_CHARS);
       if (!text.trim()) return null;
       return {
-        system: SYSTEM.terms,
-        schema: TERMS_SCHEMA,
-        user: `Below is text captured by OCR. It may be a photographed page or a screenshot of an app, so alongside the vocabulary it can contain interface junk: clock times, battery numbers, app and button names (like "Ask", "Search", "Send"), model or product names, navigation labels, and stray symbols. None of that is vocabulary — leave it out.\n\nList up to ${count} of the English words and phrases the student wants to learn, each exactly as it appears (fixing obvious OCR slips like a scrambled word you can confidently restore). If an item is garbled beyond recognition, leave it out. Do not answer, define, or translate anything.\n\nOCR TEXT:\n${text}`,
+        system: SYSTEM.vocab,
+        schema: CARDS_SCHEMA,
+        user: `Below is text captured by OCR from a vocabulary page or a screenshot of an app. Alongside the vocabulary it can contain interface junk: clock times, battery numbers, app and button names (like "Ask", "Search", "Send"), model or product names, navigation labels, and stray symbols. None of that is vocabulary — leave it out.\n\nList up to ${count} items the student wants to learn. For each one:\n- "front" is the word or phrase, exactly as written (fixing obvious OCR slips you can confidently restore). If it is garbled beyond recognition, leave the item out.\n- "back" is the translation or meaning THE PAGE ITSELF gives for it, exactly as written. If the page gives none, use an empty string.\n\nDo not translate, define or explain anything yourself — an empty back is correct when the page has no translation.\n\nOCR TEXT:\n${text}`,
       };
     }
 

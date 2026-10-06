@@ -68,10 +68,33 @@ enum CardEngine {
         }
     }
 
-    func makeTerms(fromText text: String) async throws -> [String] {
+    /// A scanned vocabulary page's cards, plus whether the page supplied the
+    /// backs itself (a term–translation list) rather than them still needing
+    /// translation. Both engines answer the same question; only the cloud one
+    /// reads the pairings with a model.
+    func makeVocabulary(fromText text: String) async throws -> (cards: [(front: String, back: String)], pageSuppliedBacks: Bool) {
         switch self {
-        case .onDevice: try await AICardGenerator.makeTerms(fromText: text)
-        case .cloud: try await CloudCardGenerator.makeTerms(fromText: text)
+        case .onDevice:
+            // Unchanged from 1.5. A page that already pairs each term with its
+            // translation IS the deck, and a separator split reads it more
+            // reliably than the small on-device model would.
+            if let pairs = VocabPairDetector.pairs(from: text) {
+                return (pairs, true)
+            }
+            // A plain list: the back carries the English term so translation
+            // can fill it in afterwards.
+            let items = try await AICardGenerator.makeTerms(fromText: text)
+            return (items.map { (front: $0, back: $0) }, false)
+
+        case .cloud:
+            let items = try await CloudCardGenerator.makeVocabulary(fromText: text)
+            // Majority rule, matching the detector: one stray splittable line in
+            // a plain word list must not flip the whole page into paired mode.
+            let withBacks = items.filter { !$0.back.isEmpty }.count
+            guard withBacks * 2 >= items.count else {
+                return (items.map { (front: $0.front, back: $0.front) }, false)
+            }
+            return (items, true)
         }
     }
 

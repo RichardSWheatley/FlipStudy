@@ -73,9 +73,12 @@ run showed those bad cards as if the AI had written them. So:
   including the model-specific failures (page too long for the context window,
   guardrail refusal, iPhone/Siri language mismatch) that previously fell
   through to silent splitter cards with no explanation.
-- **Paired-vocabulary pages are unchanged.** A page that already pairs each
-  term with its translation still becomes cards verbatim, model or no model —
-  those pairs are the page's own content, not generation.
+- **Everything the AI writes goes to the cloud.** With a code redeemed, every
+  generation path is the Worker's — including a page that already pairs terms
+  with translations, which the model now reads instead of a separator split.
+  The page's own translations are still preserved rather than re-derived, and a
+  deterministic split repairs any row the model hands back unsplit. Without a
+  code, that page is still split deterministically exactly as 1.5 shipped.
 - **Simulator consequence.** Model availability in the simulator follows the
   host Mac: with Apple Intelligence on macOS the sim proxies the host model
   and the full AI scan runs (verified 2026-08-31); without it, only the
@@ -159,4 +162,4 @@ deterministic unit tests in `FlipStudyTests`; simulator scenarios run in the
 | 34 | Quote decoration at the edge of a scanned line never reaches a card: OCR's `<<` for the Italian guillemet «, real guillemets, and curly quotes are stripped from fronts and backs, while quotes *inside* a question and words that genuinely begin with a hyphen are left alone | `FlipStudyTests/VocabPairDetectorTests.swift` (splitter half retired with 1.5) |
 | 35 | On hardware that can't run Apple Intelligence, the New Deck menu shows neither Type a Subject nor Scan a Page; on capable hardware without Pro, both carry "(Pro)" and open the paywall, and unlocking continues into whichever feature was tapped | simulator scenario |
 | 36 | A scan whose AI extraction can't run or fails shows a plain-language reason (model off or downloading, too much text for the context window, guardrail refusal, iPhone/Siri language mismatch, nothing studiable) and never substitutes rule-based cards | simulator scenario (unavailability) + on-device |
-| 37 | A paired-vocabulary page still becomes cards verbatim with no model involved — the one scan path that works when the model can't run | `FlipStudyTests/VocabPairDetectorTests.swift` + simulator scenario |
+| 37 | A paired-vocabulary page keeps the page's own translations under either engine: the on-device path splits them deterministically (and is the one scan that works when no model can run), while the cloud path has the model read the pairings and a separator split repairs any row it hands back unsplit | `FlipStudyTests/FamilyCodeTests.swift`, `FlipStudyTests/VocabPairDetectorTests.swift` + on-device |

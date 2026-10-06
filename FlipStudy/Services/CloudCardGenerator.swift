@@ -84,21 +84,38 @@ enum CloudCardGenerator {
         return cards
     }
 
-    static func makeTerms(fromText text: String, count: Int = 25) async throws -> [String] {
+    /// Pull the vocabulary off a scanned page. The model returns each item with
+    /// whatever translation **the page itself** gave it, or an empty back when
+    /// the page is a plain word list — so one call covers both shapes and the
+    /// caller doesn't have to guess which kind of page it scanned.
+    static func makeVocabulary(fromText text: String, count: Int = 25) async throws -> [(front: String, back: String)] {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw CloudCardError.empty }
 
-        let response: TermsResponse = try await post(
-            GenerateRequest(mode: "terms", text: trimmed, count: count)
+        let response: CardsResponse = try await post(
+            GenerateRequest(mode: "vocab", text: trimmed, count: count)
         )
-        // The same deterministic guard the on-device path uses, so one slipped
-        // item can't become a junk card whichever engine produced it.
+
         var seen = Set<String>()
-        var items: [String] = []
-        for term in response.terms {
-            guard let cleaned = AICardGenerator.tidyTerm(term),
+        var items: [(front: String, back: String)] = []
+        for card in response.cards {
+            var front = card.front.trimmingCharacters(in: .whitespacesAndNewlines)
+            var back = card.back.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // Observed slip: the model sometimes hands back a whole
+            // "term - translation" line as the front with nothing on the back.
+            // The page plainly paired those two, so split it here rather than
+            // shipping a card with no answer on it.
+            if back.isEmpty, let split = VocabPairDetector.splitPair(front) {
+                front = split.front
+                back = split.back
+            }
+
+            // The same deterministic guard the on-device path uses, so one
+            // slipped item can't become a junk card whichever engine ran.
+            guard let cleaned = AICardGenerator.tidyTerm(front),
                   seen.insert(cleaned.lowercased()).inserted else { continue }
-            items.append(cleaned)
+            items.append((front: cleaned, back: back))
         }
         guard !items.isEmpty else { throw CloudCardError.empty }
         return items

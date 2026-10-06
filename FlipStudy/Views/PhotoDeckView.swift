@@ -9,9 +9,9 @@ import Translation
 /// extractor reads the page into real question/answer pairs — scanning is an
 /// Apple Intelligence feature, gated at the New Deck menu, and there is no
 /// rule-based fallback: when the model can't run or fails, the screen says why
-/// instead of producing junk cards. The one deterministic path kept is a page
-/// that already pairs each term with its translation — those pairs are the
-/// page's own content, taken verbatim.
+/// instead of producing junk cards. A page that already pairs each term with
+/// its translation keeps the page's own pairings either way — the cloud engine
+/// reads them with the model, the on-device engine splits them deterministically.
 ///
 /// Optionally the answers can be translated into another language: the English
 /// question stays on the front and its answer is translated onto the back, so a
@@ -499,25 +499,17 @@ struct PhotoDeckView: View {
                 case .questions:
                     cards = try await engine.makeCards(fromText: text)
                 case .vocabulary:
-                    // A page that already pairs terms with translations
-                    // ("Good Morning - Buongiorno") IS the deck — take its
-                    // pairs verbatim, before any model or translator gets a
-                    // chance to second-guess the page.
-                    if let pairs = VocabPairDetector.pairs(from: text) {
-                        pageProvidesPairs = true
-                        if !userChoseLanguage,
-                           let detected = VocabPairDetector.backLanguage(of: pairs) {
-                            answerLanguage = detected
-                        }
-                        cards = pairs
-                    } else {
-                        // The page is a plain list to learn: the AI tidies the
-                        // list, each item becomes a front, and the back is
-                        // filled by translation.
-                        pageProvidesPairs = false
-                        let items = try await engine.makeTerms(fromText: text)
-                        cards = items.map { (front: $0, back: $0) }
+                    // One call covers both shapes of vocabulary page: one that
+                    // already pairs each term with its translation, and a plain
+                    // list whose backs still need translating.
+                    let vocabulary = try await engine.makeVocabulary(fromText: text)
+                    pageProvidesPairs = vocabulary.pageSuppliedBacks
+                    if vocabulary.pageSuppliedBacks,
+                       !userChoseLanguage,
+                       let detected = VocabPairDetector.backLanguage(of: vocabulary.cards) {
+                        answerLanguage = detected
                     }
+                    cards = vocabulary.cards
                 }
                 englishCards = cards
                 errorMessage = nil

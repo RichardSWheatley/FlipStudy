@@ -76,6 +76,18 @@ final class FamilyCodeTests: XCTestCase {
         XCTAssertEqual(CardEngine.active(for: settings), .onDevice)
     }
 
+    /// Without a code the scan path must behave exactly as 1.5 shipped: a page
+    /// that pairs each term with its translation is split deterministically and
+    /// used as-is, with no model and no network anywhere in reach.
+    func test_onDeviceEngine_usesThePagesOwnPairsVerbatim() async throws {
+        let page = "Italian Vocabulary\nwater - acqua\nbread - pane\ngood morning - buongiorno"
+        let result = try await CardEngine.onDevice.makeVocabulary(fromText: page)
+
+        XCTAssertTrue(result.pageSuppliedBacks)
+        XCTAssertEqual(result.cards.map(\.front), ["water", "bread", "good morning"])
+        XCTAssertEqual(result.cards.map(\.back), ["acqua", "pane", "buongiorno"])
+    }
+
     func test_engineStaysOnDevice_withNoSettingsRow() {
         XCTAssertEqual(CardEngine.active(for: nil), .onDevice)
         XCTAssertFalse(CardEngine.cloudUnlocked(nil))
