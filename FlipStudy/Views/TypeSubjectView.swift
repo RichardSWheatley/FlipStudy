@@ -175,7 +175,10 @@ struct TypeSubjectView: View {
 
     private var generatorFootnote: String {
         if needsTranslation {
-            return "The AI writes the ideas in English \(engine.label), then \(provider.label) translates the front to \(baseLanguage.label) and the back to \(targetLanguage.label). Review them below before you create the deck."
+            let writer = engine == .cloud
+                ? "FlipStudy Cloud writes the ideas in English"
+                : "The AI writes the ideas in English on your device"
+            return "\(writer), then \(provider.label) translates the front to \(baseLanguage.label) and the back to \(targetLanguage.label). Review them below before you create the deck."
         }
         switch engine {
         case .onDevice:

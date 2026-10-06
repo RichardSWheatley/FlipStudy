@@ -45,6 +45,27 @@ struct SettingsView: View {
         )
     }
 
+    private var proFootnote: String {
+        guard proStore.isPro || CardEngine.cloudUnlocked(settings) else {
+            return "A one-time purchase unlocks the on-device Apple Intelligence features: AI decks from a typed subject, and smart question-and-answer scanning."
+        }
+        switch CardEngine.active(for: settings) {
+        case .cloud:
+            return "Smart decks and page scanning are turned on, and FlipStudy Cloud is making the cards."
+        case .onDevice:
+            return "Thanks! On-device AI decks and smart page scanning are turned on."
+        }
+    }
+
+    /// The lead sentence has to stop claiming cards are drafted on the phone
+    /// once FlipStudy Cloud is the one drafting them.
+    private var translationFootnote: String {
+        let lead = CardEngine.active(for: settings) == .cloud
+            ? "Cards are drafted by FlipStudy Cloud."
+            : "Cards are always drafted on your device — free and private."
+        return lead + " This only changes the engine used to translate language decks: leave it off for Apple's on-device translator, or turn it on to use Google or Microsoft with your own API key. A grown-up has to turn this on."
+    }
+
     private var cloudCardsFootnote: String {
         guard CardEngine.cloudUnlocked(settings) else {
             return "FlipStudy Cloud makes cards with a much larger AI than this phone can hold, and works even on iPhones without Apple Intelligence. It needs a family code. A grown-up has to enter it."
@@ -88,9 +109,7 @@ struct SettingsView: View {
                 } header: {
                     Text("FlipStudy Pro")
                 } footer: {
-                    Text(proStore.isPro
-                         ? "Thanks! On-device AI decks and smart page scanning are turned on."
-                         : "A one-time purchase unlocks the on-device Apple Intelligence features: AI decks from a typed subject, and smart question-and-answer scanning.")
+                    Text(proFootnote)
                 }
 
                 Section {
@@ -139,7 +158,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Translation")
                 } footer: {
-                    Text("Cards are always drafted on your device — free and private. This only changes the engine used to translate language decks: leave it off for Apple's on-device translator, or turn it on to use Google or Microsoft with your own API key. A grown-up has to turn this on.")
+                    Text(translationFootnote)
                 }
 
                 Section {

@@ -59,15 +59,6 @@ enum CardEngine {
         }
     }
 
-    /// Short label for the engine, for copy that tells the user where cards
-    /// come from — which matters because one of these sends text off the phone.
-    var label: String {
-        switch self {
-        case .onDevice: "on your device"
-        case .cloud: "FlipStudy Cloud"
-        }
-    }
-
     // MARK: - Generation
 
     func makeCards(fromText text: String) async throws -> [(front: String, back: String)] {
