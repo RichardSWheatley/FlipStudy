@@ -55,6 +55,24 @@ For a QR to text or print (the app can scan it instead of typing):
 ./scripts/make-qr.swift FLIP-A7K2-9QX4 ~/Desktop/sam.png
 ```
 
+## One link per tester (the way to invite people)
+
+Send testers a single link by text — no email anywhere:
+
+```
+https://flipstudy-cards.richardswheatley.workers.dev/join?code=FLIP-P34Y-3KKF
+```
+
+- Without FlipStudy, the link shows a page with an **Install FlipStudy** button
+  (the TestFlight public link in `wrangler.toml` → `TESTFLIGHT_URL`) and the code.
+- With FlipStudy (1.6 build 14 and later), iOS opens the app instead — a
+  universal link, verified by `/.well-known/apple-app-site-association` on this
+  Worker — and the app runs the grown-up check, then shows the code ready to
+  turn on. It is pre-filled, never redeemed by itself.
+
+Once someone has joined through TestFlight, every build added to the HomePeeps
+group reaches them as a TestFlight update.
+
 ## Revoking
 
 ```bash

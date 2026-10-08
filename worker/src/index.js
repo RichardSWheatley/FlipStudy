@@ -314,12 +314,82 @@ async function handleGenerate(request, env) {
   return json({ terms });
 }
 
+
+// ---------------------------------------------------------- invite links
+
+/**
+ * Apple fetches this to learn that /join links belong to FlipStudy. With it in
+ * place, tapping a join link on a phone that has FlipStudy opens the app
+ * instead of this website (a universal link).
+ */
+const APP_SITE_ASSOCIATION = {
+  applinks: {
+    details: [
+      {
+        appIDs: ["2X96YGT8DD.com.flipstudy.app"],
+        components: [{ "/": "/join" }],
+      },
+    ],
+  },
+};
+
+const escapeHTML = (s) =>
+  s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+/**
+ * The page a join link shows when FlipStudy isn't installed yet. One link does
+ * both jobs: install from TestFlight here, then tap the same link again and the
+ * app opens with the code filled in. The code is also shown, in case the app
+ * opens the website instead (or the link was opened on a computer).
+ */
+function joinPage(rawCode, testflightURL) {
+  const code = /^FLIP-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(rawCode || "") ? rawCode.toUpperCase() : "";
+  const codeBlock = code
+    ? `<p class="step"><b>2.</b> Come back to your message and tap the link again. FlipStudy opens and turns on FlipStudy Cloud.</p>
+       <p class="small">If it doesn't open, go to FlipStudy &rarr; Settings &rarr; Enter Family Code and type:</p>
+       <p class="code">${escapeHTML(code)}</p>`
+    : `<p class="small">Ask whoever invited you for your family code.</p>`;
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join FlipStudy</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f2f2f7; --card:#fff; --text:#111; --muted:#6b6b70; --accent:#3b5bdb; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#000; --card:#1c1c1e; --text:#f2f2f7; --muted:#a1a1a6; --accent:#7b93ff; } }
+  body { margin:0; background:var(--bg); color:var(--text); font:17px/1.45 -apple-system, system-ui, sans-serif; }
+  main { max-width:420px; margin:0 auto; padding:40px 20px; }
+  .card { background:var(--card); border-radius:20px; padding:24px; }
+  h1 { font-size:26px; margin:0 0 6px; }
+  .lede { color:var(--muted); margin:0 0 22px; }
+  .step { margin:18px 0 10px; }
+  a.button { display:block; text-align:center; background:var(--accent); color:#fff; text-decoration:none;
+             font-weight:600; padding:14px; border-radius:14px; }
+  .small { color:var(--muted); font-size:15px; margin:14px 0 6px; }
+  .code { font:600 22px ui-monospace, Menlo, monospace; letter-spacing:1px; margin:4px 0 0; user-select:all; }
+</style></head>
+<body><main><div class="card">
+  <h1>Join FlipStudy</h1>
+  <p class="lede">You've been invited to try FlipStudy and FlipStudy Cloud.</p>
+  <p class="step"><b>1.</b> Install FlipStudy from TestFlight.</p>
+  <a class="button" href="${escapeHTML(testflightURL)}">Install FlipStudy</a>
+  ${codeBlock}
+</div></main></body></html>`;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
     if (request.method === "GET" && url.pathname === "/health") {
       return json({ ok: true });
+    }
+    if (request.method === "GET" && url.pathname === "/.well-known/apple-app-site-association") {
+      return json(APP_SITE_ASSOCIATION);
+    }
+    if (request.method === "GET" && url.pathname === "/join") {
+      return new Response(joinPage(url.searchParams.get("code"), env.TESTFLIGHT_URL || ""), {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
     }
     if (request.method !== "POST") return fail("not_found", 404);
 

@@ -7,11 +7,15 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(ProStore.self) private var proStore
+    @Environment(FamilyLinkRouter.self) private var linkRouter
     @Query private var settingsList: [AppSettings]
 
     @State private var showingPaywall = false
     @State private var isRestoring = false
-    @State private var showingFamilyCode = false
+    /// The code screen, when it's showing, and any code to pre-fill from a
+    /// tapped join link. One value for the same reason as `parentGate`: a flag
+    /// plus a separate pre-fill opened the screen with the previous (empty) code.
+    @State private var familyCodeRequest: FamilyCodeRequest?
     /// The pending grown-up check: what it is for, and what to do once it
     /// passes. Carried as one value rather than a flag plus separate state
     /// because `.sheet(isPresented:)` builds its body from what SwiftUI already
@@ -141,7 +145,7 @@ struct SettingsView: View {
                     } else {
                         Button {
                             parentGate = ParentGateRequest(purpose: "turn on FlipStudy Cloud") {
-                                showingFamilyCode = true
+                                familyCodeRequest = FamilyCodeRequest(prefill: "")
                             }
                         } label: {
                             Label("Enter Family Code", systemImage: "qrcode.viewfinder")
@@ -257,11 +261,27 @@ struct SettingsView: View {
                 PaywallView()
                     .environment(proStore)
             }
-            .sheet(isPresented: $showingFamilyCode) {
-                FamilyCodeView { label in
+            .sheet(item: $familyCodeRequest) { request in
+                FamilyCodeView(initialCode: request.prefill) { label in
                     settings?.cloudCardsEnabled = true
                     settings?.cloudCardsLabel = label
                 }
+            }
+            .task(id: linkRouter.pendingCode) {
+                guard let code = linkRouter.pendingCode else { return }
+                // Already on: Settings itself says so, nothing to redeem.
+                guard !CardEngine.cloudUnlocked(settings) else {
+                    linkRouter.pendingCode = nil
+                    return
+                }
+                // Let this sheet finish presenting before stacking the
+                // grown-up check on top of it.
+                try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
+                parentGate = ParentGateRequest(purpose: "turn on FlipStudy Cloud") {
+                    familyCodeRequest = FamilyCodeRequest(prefill: code)
+                }
+                linkRouter.pendingCode = nil
             }
             .onAppear {
                 ensureSettings()
@@ -384,6 +404,12 @@ struct SettingsView: View {
 /// A lightweight "ask a grown-up" gate: solve a multiplication problem that's
 /// beyond a young child. Not real security — just a speed bump before enabling
 /// an online feature, matching common kids-app practice.
+/// The code screen being shown, with any code a join link brought along.
+private struct FamilyCodeRequest: Identifiable {
+    let id = UUID()
+    let prefill: String
+}
+
 /// A pending grown-up check — what it's guarding, and what to do once it's
 /// passed.
 private struct ParentGateRequest: Identifiable {

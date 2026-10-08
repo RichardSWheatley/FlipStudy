@@ -62,6 +62,30 @@ final class FamilyCodeTests: XCTestCase {
         XCTAssertEqual(FamilyCodeView.formatted("not a code"), "not a code")
     }
 
+    // MARK: - Join links
+
+    /// The one link a tester is texted. With FlipStudy installed, iOS hands it
+    /// to the app; the code must come out exactly as the Worker hashes it.
+    func test_joinLink_queuesItsCode() {
+        let router = FamilyLinkRouter()
+        router.handle(URL(string: "https://flipstudy-cards.richardswheatley.workers.dev/join?code=FLIP-A7K2-9QX4")!)
+        XCTAssertEqual(router.pendingCode, canonical)
+    }
+
+    func test_joinLink_fromAnotherSiteIsIgnored() {
+        // Only our own domain may start the redeem flow.
+        let router = FamilyLinkRouter()
+        router.handle(URL(string: "https://example.com/join?code=FLIP-A7K2-9QX4")!)
+        XCTAssertNil(router.pendingCode)
+    }
+
+    func test_joinLink_withoutAPlausibleCodeIsIgnored() {
+        let router = FamilyLinkRouter()
+        router.handle(URL(string: "https://flipstudy-cards.richardswheatley.workers.dev/join?code=hello")!)
+        router.handle(URL(string: "https://flipstudy-cards.richardswheatley.workers.dev/health")!)
+        XCTAssertNil(router.pendingCode)
+    }
+
     // MARK: - Engine selection
 
     func test_engineStaysOnDevice_whenNoCodeIsRedeemed() {

@@ -22,3 +22,5 @@ id = "c27e1309bd6544949bf214cc1871c25f"
 [vars]
 # Default per-code daily request cap. A single code can override it.
 MAX_DAILY_REQUESTS = "50"
+# Where a join link sends someone who doesn't have FlipStudy yet.
+TESTFLIGHT_URL = "https://testflight.apple.com/join/ZstmUEj7"

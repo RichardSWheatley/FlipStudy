@@ -151,6 +151,7 @@ people we choose to give it to — today that is family, later a paid tier.
 | 40 | The app and the minting script hash a code to the same value, including the condensed form the app actually sends | `worker/scripts/verify-hash.mjs` |
 | 41 | Redeeming a code requires passing the grown-up gate first, and Remove Code revokes only this phone | simulator scenario |
 | 42 | With a code active, the smart features appear and work on hardware that cannot run Apple Intelligence, and "Make cards on this phone instead" returns to the on-device engine (and its unavailability message) without sending anything | on-device |
+| 44 | A tester is invited by one texted link, never email: without FlipStudy it shows the TestFlight install button and the code; with FlipStudy it opens the app (universal link) into the grown-up check and then the code screen pre-filled — only our own domain's `/join` links with a plausible code are accepted | `FlipStudyTests/FamilyCodeTests.swift` + simulator (`simctl openurl`) |
 | 43 | Every cloud failure — offline, quota spent, oversized text, revoked code — shows a plain-language reason and never produces cards | simulator scenario + on-device |
 
 Every criterion above is checkable; none is a vision statement. Rows 1–10 are

@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct HomeView: View {
     @Environment(\.modelContext) private var context
     @Environment(ProStore.self) private var proStore
+    @Environment(FamilyLinkRouter.self) private var linkRouter
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
     @Query private var settingsList: [AppSettings]
     @State private var showingNewDeck = false
@@ -89,6 +90,12 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            // A join link was tapped: Settings is where the code is redeemed,
+            // behind the grown-up check. `initial` covers a cold launch, where
+            // the code is already waiting before this view appears.
+            .onChange(of: linkRouter.pendingCode, initial: true) { _, code in
+                if code != nil { showingSettings = true }
             }
             .sheet(isPresented: $showingPaywall) {
                 PaywallView {
@@ -289,5 +296,6 @@ private struct ImportDeckSheet: View {
 #Preview {
     HomeView()
         .environment(ProStore())
+        .environment(FamilyLinkRouter())
         .modelContainer(for: [Deck.self, Card.self, AppSettings.self], inMemory: true)
 }

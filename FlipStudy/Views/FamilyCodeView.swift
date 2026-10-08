@@ -7,6 +7,9 @@ import SwiftUI
 /// Reached from Settings *after* the grown-up gate, because switching it on
 /// means page text starts leaving the phone.
 struct FamilyCodeView: View {
+    /// A code that arrived by join link, shown ready to confirm. Empty when the
+    /// user opened this screen themselves.
+    var initialCode: String = ""
     /// Called with the code's label ("Sam's iPhone") once it is redeemed.
     var onRedeemed: (String) -> Void
 
@@ -75,6 +78,13 @@ struct FamilyCodeView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                }
+            }
+            // Pre-filled, not auto-redeemed: turning Cloud on sends text off the
+            // phone, so the tap on Turn On stays the user's own.
+            .onAppear {
+                if code.isEmpty, !initialCode.isEmpty {
+                    code = Self.formatted(initialCode)
                 }
             }
             .fullScreenCover(isPresented: $showingScanner) {
