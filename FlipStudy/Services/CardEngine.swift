@@ -18,9 +18,12 @@ enum CardEngine {
 
     /// True when this phone has redeemed a family code and the stored token is
     /// still present. Both halves matter: the flag drives SwiftUI updates, the
-    /// token is what actually works.
+    /// token is what actually works. Never true in the App Store build, which
+    /// doesn't offer family codes at all (see `Distribution`).
     static func cloudUnlocked(_ settings: AppSettings?) -> Bool {
-        (settings?.cloudCardsEnabled ?? false) && FamilyAccess.isActive
+        Distribution.allowsFamilyCodes
+            && (settings?.cloudCardsEnabled ?? false)
+            && FamilyAccess.isActive
     }
 
     /// The engine a request should use. Cloud wins whenever it's unlocked,

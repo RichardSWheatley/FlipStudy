@@ -21,7 +21,9 @@ final class FamilyLinkRouter {
     /// Accept only our own join links with a plausible code; anything else
     /// that opens the app is ignored rather than guessed at.
     func handle(_ url: URL) {
-        guard url.host() == Self.host,
+        // The App Store build has no family codes (see `Distribution`).
+        guard Distribution.allowsFamilyCodes,
+              url.host() == Self.host,
               url.path() == "/join",
               let code = FamilyAccess.normalized(url.absoluteString)
         else { return }

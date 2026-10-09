@@ -198,6 +198,10 @@ struct SettingsView: View {
                 }
                 .task { iCloudStatus = await ICloudStatus.current() }
 
+                // Family codes exist only in TestFlight and development builds
+                // (App Review Guideline 3.1.1); the App Store build has no
+                // FlipStudy Cloud section at all.
+                if Distribution.allowsFamilyCodes {
                 Section {
                     if CardEngine.cloudUnlocked(settings) {
                         Label {
@@ -237,6 +241,7 @@ struct SettingsView: View {
                     Text("FlipStudy Cloud")
                 } footer: {
                     Text(cloudCardsFootnote)
+                }
                 }
 
                 Section {

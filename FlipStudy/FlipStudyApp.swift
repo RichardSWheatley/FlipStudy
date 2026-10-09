@@ -18,6 +18,7 @@ struct FlipStudyApp: App {
         CloudSchema.initializeIfRequested()
         #endif
         container = Persistence.makeContainer()
+        Task { await Distribution.refresh() }
         #if DEBUG
         DemoDecks.insertIfRequested(into: container.mainContext)
         #endif
