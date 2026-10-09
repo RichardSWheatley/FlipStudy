@@ -28,18 +28,47 @@
 </head>
 <body>
   <h1>FlipStudy: Flashcards — Privacy Policy</h1>
-  <p class="updated">Last updated: July 2, 2026</p>
+  <p class="updated">Last updated: October 9, 2026</p>
 
   <p>FlipStudy is a flashcard study app. This policy explains what the app does
-  and does not do with information. In short: FlipStudy is built to keep your
-  data on your device. We do not run servers, we do not have accounts, and we do
-  not collect analytics.</p>
+  and does not do with information. In short: your decks stay on your devices and
+  in your own iCloud account. We do not have accounts and we do not collect
+  analytics. The one service we run, FlipStudy Cloud, is used only by people we
+  give a family code to.</p>
 
   <h2>Information we collect</h2>
   <p><strong>We do not collect any personal information.</strong> FlipStudy has no
-  user accounts, no login, and no analytics or tracking SDKs. The decks and cards
-  you create are stored only on your device using Apple's on-device storage
+  user accounts, no login, and no analytics or tracking SDKs. The decks, cards and
+  study history you create are stored on your device using Apple's storage
   (SwiftData). We never receive them.</p>
+
+  <h2>Syncing with iCloud</h2>
+  <p>If you are signed in to iCloud, FlipStudy keeps your decks, cards and study
+  streak in sync across your iPhone and iPad through <strong>your own private
+  iCloud database</strong> (Apple's CloudKit). That database belongs to your Apple
+  Account: we cannot see or access it. Apple's privacy policy governs how iCloud
+  stores it: <a href="https://www.apple.com/legal/privacy/">apple.com/legal/privacy</a>.
+  Settings, such as your reminder time, stay on each device. If you are not signed
+  in to iCloud, everything stays on the device.</p>
+
+  <h2>FlipStudy Cloud (family code only)</h2>
+  <p>FlipStudy Cloud is an optional card-making service that works only after a
+  family code we hand out is entered in Settings. Without a code, nothing in this
+  section applies.</p>
+  <p>With a code turned on:</p>
+  <ul>
+    <li>The text you scan or type to make cards, and any card you ask FlipStudy to
+    explain, is sent over an encrypted (HTTPS) connection to our service, which
+    runs on Cloudflare and uses Cloudflare's AI models to write the reply. We do
+    not store that text; it is used to answer the request and then discarded.</li>
+    <li>To keep codes from being shared beyond the family, our service stores a
+    scrambled (hashed) form of the code, a random identifier for each device that
+    used it, and a daily count of requests. None of these identify you.</li>
+    <li>You can stop at any time by choosing "Make cards on this phone instead" or
+    removing the code in Settings.</li>
+    <li>Cloudflare processes these requests for us under its own privacy policy:
+    <a href="https://www.cloudflare.com/privacypolicy/">cloudflare.com/privacypolicy</a>.</li>
+  </ul>
 
   <h2>On-device AI and translation (the default)</h2>
   <p>By default, FlipStudy generates cards and translations entirely
@@ -57,8 +86,8 @@
   <ul>
     <li>The topic text and study terms you ask to translate are sent over an
     encrypted (HTTPS) connection <strong>directly</strong> from your device to the
-    provider you chose (Google or Microsoft). The data is not routed through us;
-    we operate no servers.</li>
+    provider you chose (Google or Microsoft). The data is not routed through
+    us.</li>
     <li>Your API key is stored securely in the device Keychain and is used only to
     authenticate those requests. It is never sent to us.</li>
     <li>The provider's own privacy policy governs how they handle that text:
@@ -79,13 +108,14 @@
 
   <h2>Children's privacy</h2>
   <p>FlipStudy is intended for students and general audiences. We do not knowingly
-  collect personal information from anyone, including children. Because the default
-  experience is fully on-device with no accounts and no data collection, no
-  personal information about a child is transmitted or stored by us.</p>
+  collect personal information from anyone, including children. The default
+  experience has no accounts and no data collection, and turning on FlipStudy
+  Cloud or a cloud translator requires a grown-up to pass a check first. No
+  personal information about a child is stored by us.</p>
 
   <h2>Data sharing and sale</h2>
-  <p>We do not sell, rent, or share your data. We have no data to share, because we
-  do not collect it.</p>
+  <p>We do not sell, rent, or share your data. We do not collect personal
+  information, so there is none to share.</p>
 
   <h2>Changes to this policy</h2>
   <p>If this policy changes, we will update the date at the top of this page.</p>
