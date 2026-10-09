@@ -22,6 +22,6 @@ struct FlipStudyApp: App {
                     if let url = activity.webpageURL { linkRouter.handle(url) }
                 }
         }
-        .modelContainer(for: [Deck.self, Card.self, AppSettings.self])
+        .modelContainer(for: [Deck.self, Card.self, AppSettings.self, StudyDay.self])
     }
 }

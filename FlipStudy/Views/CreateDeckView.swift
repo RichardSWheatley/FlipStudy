@@ -67,5 +67,5 @@ struct CreateDeckView: View {
 
 #Preview {
     CreateDeckView()
-        .modelContainer(for: [Deck.self, Card.self, AppSettings.self], inMemory: true)
+        .modelContainer(for: [Deck.self, Card.self, AppSettings.self, StudyDay.self], inMemory: true)
 }

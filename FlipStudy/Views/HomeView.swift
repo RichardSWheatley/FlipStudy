@@ -8,6 +8,8 @@ struct HomeView: View {
     @Environment(FamilyLinkRouter.self) private var linkRouter
     @Query(sort: \Deck.createdAt, order: .reverse) private var decks: [Deck]
     @Query private var settingsList: [AppSettings]
+    @Query private var studyDays: [StudyDay]
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showingNewDeck = false
     @State private var showingPhotoDeck = false
     @State private var showingSubjectDeck = false
@@ -24,6 +26,14 @@ struct HomeView: View {
     @State private var importError: String?
 
     private var settings: AppSettings? { settingsList.first }
+
+    private var streak: Int {
+        StudyProgress.currentStreak(studyDays: studyDays.filter { $0.reviewCount > 0 }.map(\.day))
+    }
+
+    private var reviewedToday: Int { StudyProgress.reviewed(on: .now, in: studyDays) }
+
+    private var dailyGoal: Int { settings?.dailyGoal ?? AppSettings.defaultDailyGoal }
 
     /// Whether this user may open the smart features at all. The $0.99 purchase
     /// is one way in; a redeemed family code is the other, and family members
@@ -50,6 +60,9 @@ struct HomeView: View {
                     }
                 } else {
                     List {
+                        Section {
+                            ProgressHeader(streak: streak, reviewed: reviewedToday, goal: dailyGoal)
+                        }
                         ForEach(decks) { deck in
                             NavigationLink(value: deck) {
                                 DeckRow(deck: deck)
@@ -60,6 +73,13 @@ struct HomeView: View {
                 }
             }
             .navigationTitle("FlipStudy")
+            // Keep the widget and the daily reminder in step with what's due.
+            // Leaving the screen is the moment that matters: that's when the
+            // widget is visible and the next reminder needs to be right.
+            .task { StudyProgress.refresh(context: context, settings: settings) }
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active { StudyProgress.refresh(context: context, settings: settings) }
+            }
             .navigationDestination(for: Deck.self) { deck in
                 DeckDetailView(deck: deck)
             }
@@ -233,6 +253,34 @@ private struct DeckRow: View {
     }
 }
 
+/// Today at a glance: the streak and progress toward the daily goal.
+private struct ProgressHeader: View {
+    let streak: Int
+    let reviewed: Int
+    let goal: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                if streak > 0 {
+                    Label("\(streak)-day streak", systemImage: "flame.fill")
+                        .foregroundStyle(.orange)
+                } else {
+                    Label("Study today to start a streak", systemImage: "flame")
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(reviewed >= goal ? "Goal met!" : "\(reviewed) of \(goal) today")
+                    .foregroundStyle(reviewed >= goal ? .green : .secondary)
+            }
+            .font(.subheadline.weight(.semibold))
+            ProgressView(value: Double(min(reviewed, goal)), total: Double(max(goal, 1)))
+                .tint(reviewed >= goal ? .green : .accentColor)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
 /// Identifiable box so a decoded snapshot can drive `.sheet(item:)`.
 private struct PendingDeck: Identifiable {
     let id = UUID()
@@ -297,5 +345,5 @@ private struct ImportDeckSheet: View {
     HomeView()
         .environment(ProStore())
         .environment(FamilyLinkRouter())
-        .modelContainer(for: [Deck.self, Card.self, AppSettings.self], inMemory: true)
+        .modelContainer(for: [Deck.self, Card.self, AppSettings.self, StudyDay.self], inMemory: true)
 }

@@ -43,6 +43,16 @@ final class AppSettings {
     /// though cloud is unlocked. A privacy choice, so it is never overridden.
     var prefersOnDeviceCards: Bool = false
 
+    /// Whether the daily "cards are ready" notification is on.
+    var reminderEnabled: Bool = false
+    /// When it fires, as minutes after midnight (17:00 by default — after school).
+    var reminderMinutes: Int = AppSettings.defaultReminderMinutes
+    /// Cards a day that count as meeting the goal.
+    var dailyGoal: Int = AppSettings.defaultDailyGoal
+
+    static let defaultReminderMinutes = 17 * 60
+    static let defaultDailyGoal = 20
+
     init(cloudAIEnabled: Bool = false,
          translationProviderRaw: String = TranslationProvider.apple.rawValue,
          cloudTranslationRegion: String = "",

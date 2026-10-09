@@ -3,6 +3,9 @@ import SwiftData
 
 struct StudyView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    @Query private var settingsList: [AppSettings]
+    @Query private var studyDays: [StudyDay]
     let deck: Deck
 
     @State private var queue: [Card] = []
@@ -12,8 +15,12 @@ struct StudyView: View {
     @State private var includeAll = false
     @State private var showingAddCard = false
     @State private var speech = SpeechPlayer()
-    @State private var reminders = RemindersService()
-    @State private var showingReminder = false
+    /// Set when someone turns on the daily reminder from here but iOS has
+    /// notifications switched off for FlipStudy.
+    @State private var reminderBlocked = false
+    /// Set once the reminder is turned on from here, so the button gives way
+    /// to a confirmation instead of just vanishing.
+    @State private var reminderJustSet = false
 
     // Speaking practice: see the front, say the answer aloud, and let speech
     // recognition suggest a grade. Off by default; a per-session toggle.
@@ -68,39 +75,66 @@ struct StudyView: View {
             }
         }
         .onAppear(perform: buildQueue)
+        // Studying just changed what's due: bring the widget and the next
+        // reminder up to date as the session closes.
+        .onDisappear { StudyProgress.refresh(context: context, settings: settings) }
         .sheet(isPresented: $showingAddCard, onDismiss: buildQueue) {
             CardEditorView(deck: deck, card: nil)
         }
-        .sheet(isPresented: $showingReminder) {
-            StudyReminderSheet(
-                deckTitle: deck.title,
-                suggestedDate: suggestedReminderDate,
-                service: reminders
-            )
-        }
     }
 
-    /// A sensible default time for a study reminder: the deck's earliest future
-    /// due date if there is one, otherwise tomorrow at 9am.
-    private var suggestedReminderDate: Date {
-        if let soonest = deck.cards.compactMap(\.nextDue).filter({ $0 > .now }).min() {
-            return soonest
-        }
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
-        return Calendar.current.date(
-            bySettingHour: 9, minute: 0, second: 0, of: tomorrow
-        ) ?? tomorrow
-    }
+    private var settings: AppSettings? { settingsList.first }
 
-    /// Button shown on the finished screens to schedule a study reminder.
+    /// Offered on the finished screens until the daily reminder is on — the
+    /// moment someone has just studied is when "remind me tomorrow" makes sense.
+    @ViewBuilder
     private var remindButton: some View {
-        Button {
-            showingReminder = true
-        } label: {
-            Label("Remind Me to Study", systemImage: "bell")
-                .frame(maxWidth: .infinity)
+        if reminderBlocked {
+            Text("Notifications are off for FlipStudy. Turn them on in the Settings app to get a daily reminder.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        } else if reminderJustSet {
+            Label("Reminder set for \(reminderTimeText). Change it in Settings.", systemImage: "bell.fill")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        } else if !(settings?.reminderEnabled ?? false) {
+            Button {
+                Task { await turnOnDailyReminder() }
+            } label: {
+                Label("Remind Me Every Day", systemImage: "bell")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
         }
-        .buttonStyle(.bordered)
+    }
+
+    private func turnOnDailyReminder() async {
+        guard await StudyNotifier.requestPermission() else {
+            reminderBlocked = true
+            return
+        }
+        settings?.reminderEnabled = true
+        reminderJustSet = true
+        StudyProgress.refresh(context: context, settings: settings)
+    }
+
+    /// The reminder time as the phone shows times, e.g. "5:00 PM".
+    private var reminderTimeText: String {
+        let minutes = settings?.reminderMinutes ?? AppSettings.defaultReminderMinutes
+        let time = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60,
+                                         second: 0, of: .now) ?? .now
+        return time.formatted(date: .omitted, time: .shortened)
+    }
+
+    /// Today's streak and goal, shown when a session ends.
+    private var progressLine: String {
+        let reviewed = StudyProgress.reviewed(on: .now, in: studyDays)
+        let goal = settings?.dailyGoal ?? AppSettings.defaultDailyGoal
+        let streak = StudyProgress.currentStreak(studyDays: studyDays.filter { $0.reviewCount > 0 }.map(\.day))
+        let goalPart = reviewed >= goal ? "Daily goal met!" : "\(reviewed) of \(goal) cards today."
+        return streak > 0 ? "\(goalPart) \(streak)-day streak." : goalPart
     }
 
     /// Add-a-card button shown on the "finished" screens so a new card (with
@@ -313,6 +347,10 @@ struct StudyView: View {
             Text("You knew \(correctCount) of \(queue.count).")
                 .font(.body)
                 .foregroundStyle(.secondary)
+            Label(progressLine, systemImage: "flame.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.orange)
+                .multilineTextAlignment(.center)
             VStack(spacing: 12) {
                 Button {
                     buildQueue()
@@ -341,6 +379,7 @@ struct StudyView: View {
         recognizer.stop()
         resetSpeakState()
         let card = queue[index]
+        StudyProgress.recordReview(in: context)
         if correct {
             card.markCorrect()
             correctCount += 1
@@ -436,90 +475,5 @@ private struct FlipCard: View {
                 .padding(28)
             }
             .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
-    }
-}
-
-/// Sheet to schedule a study reminder in the system Reminders app. Picking a
-/// time and tapping Set triggers the Reminders permission prompt on first use.
-private struct StudyReminderSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    let deckTitle: String
-    let suggestedDate: Date
-    let service: RemindersService
-
-    @State private var date: Date
-    @State private var isSaving = false
-    @State private var errorMessage: String?
-    @State private var confirmation: String?
-
-    init(deckTitle: String, suggestedDate: Date, service: RemindersService) {
-        self.deckTitle = deckTitle
-        self.suggestedDate = suggestedDate
-        self.service = service
-        _date = State(initialValue: suggestedDate)
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                if let confirmation {
-                    Section {
-                        Label(confirmation, systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    }
-                } else {
-                    Section {
-                        DatePicker(
-                            "Remind me",
-                            selection: $date,
-                            in: Date()...,
-                            displayedComponents: [.date, .hourAndMinute]
-                        )
-                    } footer: {
-                        Text("Adds a reminder to your Reminders app so you don't forget to study \(deckTitle).")
-                    }
-
-                    if let errorMessage {
-                        Section {
-                            Text(errorMessage).foregroundStyle(.red)
-                        }
-                    }
-
-                    Section {
-                        Button(action: save) {
-                            HStack {
-                                if isSaving { ProgressView() }
-                                Text(isSaving ? "Setting…" : "Set Reminder")
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isSaving)
-                    }
-                }
-            }
-            .navigationTitle("Study Reminder")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(confirmation == nil ? "Cancel" : "Done") { dismiss() }
-                }
-            }
-        }
-    }
-
-    private func save() {
-        errorMessage = nil
-        isSaving = true
-        let title = "Study \(deckTitle) in FlipStudy"
-        Task {
-            do {
-                let when = try await service.addStudyReminder(title: title, due: date)
-                confirmation = "Reminder set for \(when.formatted(date: .abbreviated, time: .shortened))."
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-            isSaving = false
-        }
     }
 }

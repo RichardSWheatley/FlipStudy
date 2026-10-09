@@ -23,6 +23,8 @@ struct SettingsView: View {
     /// still present the *previous* purpose, which asked permission for the
     /// wrong thing. `.sheet(item:)` is always built from the item.
     @State private var parentGate: ParentGateRequest?
+    /// iOS has notifications switched off for FlipStudy, so the reminder can't work.
+    @State private var notificationsBlocked = false
     @State private var apiKey = ""
     /// When true the API key is shown as plain text so a grown-up can verify the
     /// exact characters. A masked SecureField hides paste corruption (truncation,
@@ -46,6 +48,53 @@ struct SettingsView: View {
         Binding(
             get: { settings?.prefersOnDeviceCards ?? false },
             set: { settings?.prefersOnDeviceCards = $0 }
+        )
+    }
+
+    private var reminderBinding: Binding<Bool> {
+        Binding(
+            get: { settings?.reminderEnabled ?? false },
+            set: { on in
+                guard on else {
+                    settings?.reminderEnabled = false
+                    StudyProgress.refresh(context: context, settings: settings)
+                    return
+                }
+                Task {
+                    if await StudyNotifier.requestPermission() {
+                        settings?.reminderEnabled = true
+                        notificationsBlocked = false
+                    } else {
+                        notificationsBlocked = true
+                    }
+                    StudyProgress.refresh(context: context, settings: settings)
+                }
+            }
+        )
+    }
+
+    /// The reminder time, stored as minutes after midnight.
+    private var reminderTimeBinding: Binding<Date> {
+        Binding(
+            get: {
+                let minutes = settings?.reminderMinutes ?? AppSettings.defaultReminderMinutes
+                return Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: .now) ?? .now
+            },
+            set: { date in
+                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+                settings?.reminderMinutes = (parts.hour ?? 17) * 60 + (parts.minute ?? 0)
+                StudyProgress.refresh(context: context, settings: settings)
+            }
+        )
+    }
+
+    private var goalBinding: Binding<Int> {
+        Binding(
+            get: { settings?.dailyGoal ?? AppSettings.defaultDailyGoal },
+            set: {
+                settings?.dailyGoal = $0
+                StudyProgress.refresh(context: context, settings: settings)
+            }
         )
     }
 
@@ -114,6 +163,20 @@ struct SettingsView: View {
                     Text("FlipStudy Pro")
                 } footer: {
                     Text(proFootnote)
+                }
+
+                Section {
+                    Toggle("Daily reminder", isOn: reminderBinding)
+                    if settings?.reminderEnabled == true {
+                        DatePicker("Time", selection: reminderTimeBinding, displayedComponents: .hourAndMinute)
+                    }
+                    Stepper("Daily goal: \(goalBinding.wrappedValue) cards", value: goalBinding, in: 5...200, step: 5)
+                } header: {
+                    Text("Study Reminders")
+                } footer: {
+                    Text(notificationsBlocked
+                         ? "Notifications are off for FlipStudy. Turn them on in the Settings app, then try again."
+                         : "A notification at this time tells you how many cards are ready — only on days something is due.")
                 }
 
                 Section {

@@ -6,7 +6,18 @@
 	objectVersion = 70;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		300000000000000000000DE /* FlipStudyWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 300000000000000000000D1 /* FlipStudyWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		300000000000000000000DB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 100000000000000000000A3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 300000000000000000000D4;
+			remoteInfo = FlipStudyWidgetExtension;
+		};
 		200000000000000000000CB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 100000000000000000000A3 /* Project object */;
@@ -16,17 +27,51 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		300000000000000000000DD /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				300000000000000000000DE /* FlipStudyWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		300000000000000000000D1 /* FlipStudyWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FlipStudyWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		100000000000000000000A5 /* FlipStudy: Flashcards.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "FlipStudy: Flashcards.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		200000000000000000000C3 /* FlipStudyTests.xctest */ = {isa = PBXFileReference; explicitFileType = "wrapper.cfbundle"; includeInIndex = 0; path = FlipStudyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		300000000000000000000DF /* Exceptions for "FlipStudyWidget" folder in "FlipStudyWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 300000000000000000000D4 /* FlipStudyWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		300000000000000000000D2 /* FlipStudyWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (300000000000000000000DF /* Exceptions for "FlipStudyWidget" folder in "FlipStudyWidgetExtension" target */, ); explicitFileTypes = {}; explicitFolders = (); path = FlipStudyWidget; sourceTree = "<group>"; };
+		300000000000000000000D3 /* Shared */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Shared; sourceTree = "<group>"; };
 		100000000000000000000A6 /* FlipStudy */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipStudy; sourceTree = "<group>"; };
 		200000000000000000000C1 /* FlipStudyTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipStudyTests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		300000000000000000000D6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		100000000000000000000A8 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -49,6 +94,8 @@
 			children = (
 				100000000000000000000A6 /* FlipStudy */,
 				200000000000000000000C1 /* FlipStudyTests */,
+				300000000000000000000D2 /* FlipStudyWidget */,
+				300000000000000000000D3 /* Shared */,
 				100000000000000000000A2 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -58,6 +105,7 @@
 			children = (
 				100000000000000000000A5 /* FlipStudy: Flashcards.app */,
 				200000000000000000000C3 /* FlipStudyTests.xctest */,
+				300000000000000000000D1 /* FlipStudyWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -65,6 +113,27 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		300000000000000000000D4 /* FlipStudyWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 300000000000000000000D8 /* Build configuration list for PBXNativeTarget "FlipStudyWidgetExtension" */;
+			buildPhases = (
+				300000000000000000000D5 /* Sources */,
+				300000000000000000000D6 /* Frameworks */,
+				300000000000000000000D7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				300000000000000000000D2 /* FlipStudyWidget */,
+				300000000000000000000D3 /* Shared */,
+			);
+			name = FlipStudyWidgetExtension;
+			productName = FlipStudyWidgetExtension;
+			productReference = 300000000000000000000D1 /* FlipStudyWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		100000000000000000000A4 /* FlipStudy */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 100000000000000000000B2 /* Build configuration list for PBXNativeTarget "FlipStudy" */;
@@ -72,13 +141,16 @@
 				100000000000000000000A7 /* Sources */,
 				100000000000000000000A8 /* Frameworks */,
 				100000000000000000000A9 /* Resources */,
+				300000000000000000000DD /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				300000000000000000000DC /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				100000000000000000000A6 /* FlipStudy */,
+				300000000000000000000D3 /* Shared */,
 			);
 			name = FlipStudy;
 			productName = FlipStudy;
@@ -119,6 +191,9 @@
 					100000000000000000000A4 = {
 						CreatedOnToolsVersion = 26.6;
 					};
+					300000000000000000000D4 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 				};
 			};
 			buildConfigurationList = 100000000000000000000B1 /* Build configuration list for PBXProject "FlipStudy" */;
@@ -137,11 +212,19 @@
 			targets = (
 				100000000000000000000A4 /* FlipStudy */,
 				200000000000000000000C2 /* FlipStudyTests */,
+				300000000000000000000D4 /* FlipStudyWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		300000000000000000000D7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		100000000000000000000A9 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -159,6 +242,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		300000000000000000000D5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		100000000000000000000A7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -176,6 +266,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		300000000000000000000DC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 300000000000000000000D4 /* FlipStudyWidgetExtension */;
+			targetProxy = 300000000000000000000DB /* PBXContainerItemProxy */;
+		};
 		200000000000000000000CA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = FlipStudy;
@@ -185,6 +280,60 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		300000000000000000000D9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FlipStudyWidget/FlipStudyWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 14;
+				DEVELOPMENT_TEAM = 2X96YGT8DD;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FlipStudyWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FlipStudy;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipstudy.app.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		300000000000000000000DA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FlipStudyWidget/FlipStudyWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 14;
+				DEVELOPMENT_TEAM = 2X96YGT8DD;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FlipStudyWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FlipStudy;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipstudy.app.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		100000000000000000000B3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -314,8 +463,6 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards, and to scan a family code.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FlipStudy uses the microphone so you can practice saying your answers out loud.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "FlipStudy reads text from photos you choose to create study cards.";
-				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "FlipStudy adds a reminder to your Reminders so you remember to study.";
-				INFOPLIST_KEY_NSRemindersUsageDescription = "FlipStudy adds a reminder to your Reminders so you remember to study.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "FlipStudy uses speech recognition to check the answer you say out loud.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -350,8 +497,6 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards, and to scan a family code.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FlipStudy uses the microphone so you can practice saying your answers out loud.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "FlipStudy reads text from photos you choose to create study cards.";
-				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "FlipStudy adds a reminder to your Reminders so you remember to study.";
-				INFOPLIST_KEY_NSRemindersUsageDescription = "FlipStudy adds a reminder to your Reminders so you remember to study.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "FlipStudy uses speech recognition to check the answer you say out loud.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -417,6 +562,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		300000000000000000000D8 /* Build configuration list for PBXNativeTarget "FlipStudyWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				300000000000000000000D9 /* Debug */,
+				300000000000000000000DA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		100000000000000000000B1 /* Build configuration list for PBXProject "FlipStudy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
