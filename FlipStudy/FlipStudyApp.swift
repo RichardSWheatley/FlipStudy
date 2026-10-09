@@ -10,9 +10,14 @@ struct FlipStudyApp: App {
     @State private var linkRouter = FamilyLinkRouter()
     /// Built once: decks sync through iCloud, settings stay on this device.
     private let container: ModelContainer
+    /// The colour picked in Settings, which also drives the icon and widget.
+    @AppStorage(AppTheme.storageKey, store: AppTheme.defaults) private var themeRaw = AppTheme.classic.rawValue
 
     init() {
         container = Persistence.makeContainer()
+        #if DEBUG
+        DemoDecks.insertIfRequested(into: container.mainContext)
+        #endif
     }
 
     var body: some Scene {
@@ -20,6 +25,10 @@ struct FlipStudyApp: App {
             HomeView()
                 .environment(proStore)
                 .environment(linkRouter)
+                // Rounded type and the picked colour everywhere: friendlier
+                // for the kids this is for.
+                .fontDesign(.rounded)
+                .tint((AppTheme(rawValue: themeRaw) ?? .classic).bottom)
                 // A tapped join link arrives here whether the app was running
                 // or not. SwiftUI delivers universal links through both paths
                 // depending on how the app was opened, so listen on both.

@@ -30,6 +30,7 @@ struct MatchView: View {
     @State private var misses = 0
     @State private var startedAt = Date.now
     @State private var finishedIn: TimeInterval?
+    @State private var confettiTrigger = 0
 
     private var settings: AppSettings? { settingsList.first }
 
@@ -42,6 +43,12 @@ struct MatchView: View {
                     board
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(DeckBackdrop(palette: deck.palette))
+            .overlay {
+                ConfettiView(trigger: confettiTrigger)
+                    .ignoresSafeArea()
+            }
             .navigationTitle(deck.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -50,14 +57,22 @@ struct MatchView: View {
                 }
                 if finishedIn == nil {
                     ToolbarItem(placement: .principal) {
-                        Text("\(matched.count) / \(pairCount) matched")
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            ProgressView(value: Double(matched.count), total: Double(max(pairCount, 1)))
+                                .tint(deck.palette.bottom)
+                                .frame(width: 110)
+                            Text("\(matched.count)/\(pairCount)")
+                                .font(.subheadline.weight(.bold))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(matched.count) of \(pairCount) matched")
                     }
                 }
             }
         }
+        .tint(deck.palette.bottom)
         .onAppear(perform: newRound)
         .onDisappear { StudyProgress.refresh(context: context, settings: settings) }
         .sensoryFeedback(.success, trigger: matched.count)
@@ -66,8 +81,8 @@ struct MatchView: View {
 
     private var board: some View {
         VStack(spacing: 16) {
-            Text("Tap a card on each side to make a pair.")
-                .font(.subheadline)
+            Text("Tap a card on each side to make a pair! 🧩")
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
             HStack(alignment: .top, spacing: 12) {
                 column(fronts)
@@ -87,32 +102,53 @@ struct MatchView: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// Questions are white tiles edged in the deck's colour; answers are
+    /// tiles in the colour itself, so the two sides never look alike.
     private func tileButton(_ tile: Tile) -> some View {
         let isMatched = matched.contains(tile.pairID)
         let isWrong = wrong.contains(tile)
         let isSelected = selected == tile
-        let tint: Color = isMatched ? .green : isWrong ? .red : .accentColor
+        let palette = deck.palette
+        let isAnswer = tile.side == .back
+        let fill: AnyShapeStyle = isMatched ? AnyShapeStyle(DeckPalette.lime.gradient)
+            : isWrong ? AnyShapeStyle(DeckPalette.berry.gradient)
+            : isAnswer ? AnyShapeStyle(palette.gradient)
+            : AnyShapeStyle(Color(.systemBackground))
+        let textColor: Color = isMatched || isWrong || isAnswer ? .white : palette.ink
         return Button {
             tap(tile)
         } label: {
             Text(tile.text)
-                .font(.callout.weight(.medium))
+                .font(.callout.weight(.bold))
+                .foregroundStyle(textColor)
                 .multilineTextAlignment(.center)
                 .lineLimit(4)
                 .minimumScaleFactor(0.6)
-                .frame(maxWidth: .infinity, minHeight: 64)
-                .padding(.horizontal, 2)
+                .frame(maxWidth: .infinity, minHeight: 68)
+                .padding(.horizontal, 6)
+                .background(fill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(isSelected ? AnyShapeStyle(Color.primary.opacity(0.85))
+                                      : isAnswer || isMatched || isWrong ? AnyShapeStyle(Color.clear)
+                                      : AnyShapeStyle(palette.top.opacity(0.7)),
+                                      lineWidth: isSelected ? 4 : 2.5)
+                }
+                .overlay(alignment: .topTrailing) {
+                    if isMatched {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.white)
+                            .padding(5)
+                    }
+                }
+                .shadow(color: palette.bottom.opacity(isSelected ? 0.4 : 0.15), radius: isSelected ? 8 : 4, y: 3)
+                .scaleEffect(isSelected ? 1.06 : 1)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
         }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.roundedRectangle(radius: 14))
-        .tint(tint)
-        .overlay {
-            if isSelected {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(Color.accentColor, lineWidth: 3)
-            }
-        }
-        .opacity(isMatched ? 0.35 : 1)
+        .buttonStyle(SquishButtonStyle())
+        .modifier(ShakeEffect(progress: isWrong ? 1 : 0))
+        .animation(.linear(duration: 0.4), value: isWrong)
+        .opacity(isMatched ? 0.45 : 1)
         .allowsHitTesting(!isMatched && wrong.isEmpty)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -137,6 +173,7 @@ struct MatchView: View {
             StudyProgress.recordReview(in: context)
             if matched.count == pairCount {
                 withAnimation { finishedIn = Date.now.timeIntervalSince(startedAt) }
+                confettiTrigger += 1
             }
         } else {
             misses += 1
@@ -166,12 +203,22 @@ struct MatchView: View {
     }
 
     private func summary(seconds: TimeInterval) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "square.grid.2x2.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(.tint)
-            Text("All Matched!")
-                .font(.title2.bold())
+        let stars = misses == 0 ? 3 : misses <= 2 ? 2 : 1
+        return VStack(spacing: 16) {
+            Text(misses == 0 ? "🏆" : "🧩")
+                .font(.system(size: 76))
+            Text(misses == 0 ? "Perfect Match!" : "All Matched!")
+                .font(.largeTitle.bold())
+            HStack(spacing: 6) {
+                ForEach(1...3, id: \.self) { star in
+                    Image(systemName: star <= stars ? "star.fill" : "star")
+                        .font(.title)
+                        .foregroundStyle(star <= stars ? Color.yellow : Color.gray.opacity(0.4))
+                        .shadow(color: star <= stars ? .orange.opacity(0.4) : .clear, radius: 3, y: 1)
+                }
+            }
+            .accessibilityElement()
+            .accessibilityLabel("\(stars) of 3 stars")
             Text(resultLine(seconds: seconds))
                 .font(.body)
                 .foregroundStyle(.secondary)
@@ -187,9 +234,8 @@ struct MatchView: View {
                     newRound()
                 } label: {
                     Label("Play Again", systemImage: "arrow.clockwise")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(ChunkyButtonStyle(deck.palette.gradient))
                 Button("Done") { dismiss() }
                     .buttonStyle(.bordered)
             }

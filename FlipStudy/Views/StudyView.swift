@@ -44,6 +44,10 @@ struct StudyView: View {
     @State private var explainingCard: Card?
     @State private var explanations: [String: CardExplanation] = [:]
 
+    // Cheering: a quick bubble after each card, confetti when a session ends.
+    @State private var cheer: String?
+    @State private var confettiTrigger = 0
+
     var body: some View {
         NavigationStack {
             Group {
@@ -61,6 +65,26 @@ struct StudyView: View {
                     reviewing(card: queue[index])
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(DeckBackdrop(palette: deck.palette))
+            .overlay(alignment: .top) {
+                if let cheer {
+                    Text(cheer)
+                        .font(.title2.weight(.heavy))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 22)
+                        .padding(.vertical, 10)
+                        .background(deck.palette.gradient, in: Capsule())
+                        .shadow(color: deck.palette.bottom.opacity(0.4), radius: 8, y: 4)
+                        .padding(.top, 6)
+                        .transition(.scale(scale: 0.5).combined(with: .opacity))
+                        .accessibilityHidden(true)
+                }
+            }
+            .overlay {
+                ConfettiView(trigger: confettiTrigger)
+                    .ignoresSafeArea()
+            }
             .navigationTitle(deck.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -69,10 +93,17 @@ struct StudyView: View {
                 }
                 if index < queue.count {
                     ToolbarItem(placement: .principal) {
-                        Text("\(min(index + 1, queue.count)) / \(queue.count)")
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            ProgressView(value: Double(index), total: Double(max(queue.count, 1)))
+                                .tint(deck.palette.bottom)
+                                .frame(width: 110)
+                            Text("\(min(index + 1, queue.count))/\(queue.count)")
+                                .font(.subheadline.weight(.bold))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Card \(min(index + 1, queue.count)) of \(queue.count)")
                     }
                 }
                 if index < queue.count && mode == .flashcards {
@@ -84,12 +115,13 @@ struct StudyView: View {
                         } label: {
                             Image(systemName: speakMode ? "mic.fill" : "mic.slash")
                         }
-                        .tint(speakMode ? .accentColor : .secondary)
+                        .tint(speakMode ? deck.palette.bottom : .secondary)
                         .accessibilityLabel(speakMode ? "Speaking practice on" : "Speaking practice off")
                     }
                 }
             }
         }
+        .tint(deck.palette.bottom)
         .onAppear(perform: buildQueue)
         // Studying just changed what's due: bring the widget and the next
         // reminder up to date as the session closes.
@@ -120,7 +152,7 @@ struct StudyView: View {
                     .font(.subheadline.weight(.semibold))
             }
             .buttonStyle(.bordered)
-            .tint(.accentColor)
+            .tint(deck.palette.bottom)
         }
     }
 
@@ -199,7 +231,7 @@ struct StudyView: View {
         VStack(spacing: 24) {
             Spacer()
 
-            FlipCard(card: card, showingBack: showingBack)
+            FlipCard(card: card, showingBack: showingBack, palette: deck.palette, emoji: deck.displayEmoji)
                 .onTapGesture {
                     if showingBack { speech.stop() }
                     if recognizer.isListening { recognizer.stop() }
@@ -255,7 +287,7 @@ struct StudyView: View {
     private func typing(card: Card) -> some View {
         VStack(spacing: 20) {
             Spacer(minLength: 0)
-            FlipCard(card: card, showingBack: showingBack, height: 220)
+            FlipCard(card: card, showingBack: showingBack, palette: deck.palette, emoji: deck.displayEmoji, height: 220)
             Spacer(minLength: 0)
             if let result = typedResult {
                 VStack(spacing: 16) {
@@ -284,8 +316,12 @@ struct StudyView: View {
                 VStack(spacing: 12) {
                     TextField("Type the answer", text: $typed)
                         .font(.title3)
-                        .padding(14)
-                        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .padding(16)
+                        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(deck.palette.top.opacity(0.7), lineWidth: 2.5)
+                        }
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .submitLabel(.done)
@@ -351,7 +387,7 @@ struct StudyView: View {
     private func quiz(card: Card) -> some View {
         VStack(spacing: 20) {
             Spacer(minLength: 0)
-            FlipCard(card: card, showingBack: false, height: 200)
+            FlipCard(card: card, showingBack: false, palette: deck.palette, emoji: deck.displayEmoji, height: 200)
             Spacer(minLength: 0)
             VStack(spacing: 10) {
                 ForEach(choices, id: \.self) { choice in
@@ -374,34 +410,42 @@ struct StudyView: View {
     private func choiceButton(_ choice: String, card: Card) -> some View {
         let isRight = isAnswer(choice, for: card)
         let revealed = picked != nil
-        let state: (tint: Color, icon: String?) = {
-            guard revealed else { return (.accentColor, nil) }
-            if isRight { return (.green, "checkmark.circle.fill") }
-            if choice == picked { return (.red, "xmark.circle.fill") }
-            return (.secondary, nil)
+        let isPickedWrong = revealed && choice == picked && !isRight
+        let fill: AnyShapeStyle = {
+            guard revealed else { return AnyShapeStyle(Color(.systemBackground)) }
+            if isRight { return AnyShapeStyle(DeckPalette.lime.gradient) }
+            if isPickedWrong { return AnyShapeStyle(DeckPalette.berry.gradient) }
+            return AnyShapeStyle(Color.gray.opacity(0.12))
         }()
+        let icon: String? = !revealed ? nil : isRight ? "checkmark.circle.fill" : isPickedWrong ? "xmark.circle.fill" : nil
         return Button {
             guard picked == nil else { return }
-            withAnimation(.easeInOut(duration: 0.2)) { picked = choice }
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { picked = choice }
         } label: {
             HStack(spacing: 10) {
                 Text(choice)
-                    .font(.body.weight(.medium))
+                    .font(.body.weight(.bold))
                     .multilineTextAlignment(.leading)
                     .lineLimit(3)
                     .minimumScaleFactor(0.7)
                 Spacer(minLength: 0)
-                if let icon = state.icon {
+                if let icon {
                     Image(systemName: icon)
+                        .font(.title3)
                 }
             }
+            .foregroundStyle(revealed && (isRight || isPickedWrong) ? Color.white : revealed ? Color.secondary : deck.palette.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 4)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 18)
+            .background(fill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(deck.palette.top.opacity(revealed ? 0 : 0.6), lineWidth: 2.5)
+            }
+            .scaleEffect(revealed && isRight ? 1.03 : 1)
         }
-        .buttonStyle(.bordered)
-        .tint(state.tint)
-        .opacity(revealed && !isRight && choice != picked ? 0.5 : 1)
+        .buttonStyle(SquishButtonStyle())
         .allowsHitTesting(!revealed)
         .sensoryFeedback(trigger: picked) { _, new in
             guard new == choice else { return nil }
@@ -442,7 +486,6 @@ struct StudyView: View {
             .font(.subheadline.weight(.semibold))
         }
         .buttonStyle(.bordered)
-        .tint(.accentColor)
     }
 
     /// Front-of-card controls when speaking practice is on: a mic button to say
@@ -477,7 +520,7 @@ struct StudyView: View {
                 .padding(.vertical, 10)
             }
             .buttonStyle(.borderedProminent)
-            .tint(recognizer.isListening ? .red : .accentColor)
+            .tint(recognizer.isListening ? .red : deck.palette.bottom)
 
             Text("or tap the card to flip and grade yourself")
                 .font(.caption)
@@ -511,21 +554,35 @@ struct StudyView: View {
     private func answerButton(title: String, systemImage: String, tint: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .font(.title3.bold())
         }
-        .buttonStyle(.borderedProminent)
-        .tint(tint)
+        .buttonStyle(ChunkyButtonStyle(answerFill(tint)))
+    }
+
+    /// Missed it is berry, Got it is lime, anything else wears the deck's colour.
+    private func answerFill(_ tint: Color) -> AnyShapeStyle {
+        if tint == .red { return AnyShapeStyle(DeckPalette.berry.gradient) }
+        if tint == .green { return AnyShapeStyle(DeckPalette.lime.gradient) }
+        return AnyShapeStyle(deck.palette.gradient)
+    }
+
+    /// A bubble of praise (or encouragement) that pops up and fades.
+    private func showCheer(_ text: String) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { cheer = text }
+        Task {
+            try? await Task.sleep(for: .seconds(1.2))
+            if cheer == text {
+                withAnimation(.easeOut(duration: 0.25)) { cheer = nil }
+            }
+        }
     }
 
     private var caughtUp: some View {
         VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(.tint)
-            Text("All Caught Up")
-                .font(.title2.bold())
+            Text("😎")
+                .font(.system(size: 72))
+            Text("All Caught Up!")
+                .font(.largeTitle.bold())
             Text(nextDueMessage)
                 .font(.body)
                 .foregroundStyle(.secondary)
@@ -536,9 +593,8 @@ struct StudyView: View {
                     buildQueue()
                 } label: {
                     Label("Study All Anyway", systemImage: "rectangle.stack")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(ChunkyButtonStyle(deck.palette.gradient))
 
                 addCardButton
 
@@ -562,12 +618,23 @@ struct StudyView: View {
     }
 
     private var summary: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "party.popper.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(.tint)
-            Text("Session Complete")
-                .font(.title2.bold())
+        let finish = Cheer.finish(correct: correctCount, total: queue.count)
+        let stars = Cheer.stars(correct: correctCount, total: queue.count)
+        return VStack(spacing: 16) {
+            Text(finish.emoji)
+                .font(.system(size: 76))
+            Text(finish.title)
+                .font(.largeTitle.bold())
+            HStack(spacing: 6) {
+                ForEach(1...3, id: \.self) { star in
+                    Image(systemName: star <= stars ? "star.fill" : "star")
+                        .font(.title)
+                        .foregroundStyle(star <= stars ? Color.yellow : Color.gray.opacity(0.4))
+                        .shadow(color: star <= stars ? .orange.opacity(0.4) : .clear, radius: 3, y: 1)
+                }
+            }
+            .accessibilityElement()
+            .accessibilityLabel("\(stars) of 3 stars")
             Text("You knew \(correctCount) of \(queue.count).")
                 .font(.body)
                 .foregroundStyle(.secondary)
@@ -580,9 +647,8 @@ struct StudyView: View {
                     buildQueue()
                 } label: {
                     Label("Study Again", systemImage: "arrow.clockwise")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(ChunkyButtonStyle(deck.palette.gradient))
 
                 addCardButton
 
@@ -614,6 +680,11 @@ struct StudyView: View {
             showingBack = false
             index += 1
             prepareCard()
+        }
+        if index >= queue.count {
+            confettiTrigger += 1
+        } else {
+            showCheer((correct ? Cheer.correct : Cheer.missed).randomElement() ?? "")
         }
         if mode == .typeAnswer { answerFocused = index < queue.count }
     }
@@ -667,13 +738,15 @@ struct StudyView: View {
 private struct FlipCard: View {
     let card: Card
     let showingBack: Bool
+    var palette: DeckPalette = .ocean
+    var emoji: String = ""
     var height: CGFloat = 320
 
     var body: some View {
         ZStack {
-            face(text: card.front, label: "FRONT", filled: false)
+            front
                 .opacity(showingBack ? 0 : 1)
-            face(text: card.back, label: "BACK", filled: true)
+            back
                 .opacity(showingBack ? 1 : 0)
                 .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
         }
@@ -682,26 +755,62 @@ private struct FlipCard: View {
         .frame(height: height)
     }
 
-    private func face(text: String, label: String, filled: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .fill(filled ? AnyShapeStyle(.tint.opacity(0.15)) : AnyShapeStyle(.background))
+    /// The question: a white card edged in the deck's colour.
+    private var front: some View {
+        RoundedRectangle(cornerRadius: 28, style: .continuous)
+            .fill(Color(.systemBackground))
             .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(.quaternary, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(palette.gradient, lineWidth: 4)
+            }
+            .overlay(alignment: .topLeading) {
+                Text(emoji)
+                    .font(.title)
+                    .padding(16)
             }
             .overlay {
-                VStack(spacing: 16) {
-                    Text(label)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.secondary)
-                    Text(text)
-                        .font(.system(size: 34, weight: .semibold))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(6)
-                        .minimumScaleFactor(0.35)
+                VStack(spacing: 14) {
+                    Text("QUESTION")
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(palette.ink)
+                        .tracking(1.5)
+                    faceText(card.front)
+                        .foregroundStyle(.primary)
                 }
                 .padding(28)
             }
-            .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
+            .shadow(color: palette.bottom.opacity(0.18), radius: 14, y: 6)
+    }
+
+    /// The answer: the deck's colour, full strength.
+    private var back: some View {
+        RoundedRectangle(cornerRadius: 28, style: .continuous)
+            .fill(palette.gradient)
+            .overlay(alignment: .topLeading) {
+                Text("💡")
+                    .font(.title)
+                    .padding(16)
+            }
+            .overlay {
+                VStack(spacing: 14) {
+                    Text("ANSWER")
+                        .font(.caption.weight(.heavy))
+                        .tracking(1.5)
+                        .opacity(0.85)
+                    faceText(card.back)
+                }
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.12), radius: 1, y: 1)
+                .padding(28)
+            }
+            .shadow(color: palette.bottom.opacity(0.3), radius: 14, y: 6)
+    }
+
+    private func faceText(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 34, weight: .bold, design: .rounded))
+            .multilineTextAlignment(.center)
+            .lineLimit(6)
+            .minimumScaleFactor(0.35)
     }
 }

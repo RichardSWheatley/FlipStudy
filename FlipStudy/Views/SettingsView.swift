@@ -134,6 +134,14 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
+                    ThemePicker()
+                } header: {
+                    Text("🎨 Pick Your Color")
+                } footer: {
+                    Text("Changes FlipStudy's colors, its widget, and its icon on your Home Screen.")
+                }
+
+                Section {
                     if proStore.isPro {
                         Label {
                             Text("Pro unlocked")

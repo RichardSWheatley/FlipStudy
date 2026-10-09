@@ -56,8 +56,22 @@ struct StudyProvider: TimelineProvider {
 struct StudyWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: StudyEntry
+    /// The colour picked in the app, so the widget matches the icon.
+    private let theme = AppTheme.current
 
     var body: some View {
+        content
+            .containerBackground(for: .widget) {
+                if family == .systemSmall {
+                    theme.gradient
+                } else {
+                    Color.clear
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch family {
         case .accessoryCircular:
             ZStack {
@@ -87,32 +101,35 @@ struct StudyWidgetView: View {
     }
 
     private var small: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Image(systemName: "rectangle.on.rectangle.angled")
-                    .foregroundStyle(.tint)
+                Text("🃏")
+                    .font(.title3)
                 Spacer()
                 if entry.streak > 0 {
-                    Label("\(entry.streak)", systemImage: "flame.fill")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.orange)
+                    Text("🔥 \(entry.streak)")
+                        .font(.subheadline.weight(.heavy))
                 }
             }
             Spacer(minLength: 0)
             if entry.hasData {
                 Text("\(entry.due)")
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .font(.system(size: 46, weight: .heavy, design: .rounded))
                     .minimumScaleFactor(0.5)
-                Text(entry.due == 1 ? "card due" : "cards due")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .widgetAccentable()
+                Text(entry.due == 0 ? "All caught up!" : entry.due == 1 ? "card to study" : "cards to study")
+                    .font(.caption.weight(.semibold))
+                    .opacity(0.9)
                 ProgressView(value: Double(min(entry.reviewed, entry.goal)), total: Double(entry.goal))
-                    .tint(entry.reviewed >= entry.goal ? .green : .accentColor)
+                    .tint(.white)
+                    .padding(.top, 2)
             } else {
-                Text("Open FlipStudy to start")
-                    .font(.callout.weight(.semibold))
+                Text("Open FlipStudy to start!")
+                    .font(.callout.weight(.bold))
             }
         }
+        .fontDesign(.rounded)
+        .foregroundStyle(.white)
     }
 }
 
@@ -120,7 +137,6 @@ struct FlipStudyWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "FlipStudyWidget", provider: StudyProvider()) { entry in
             StudyWidgetView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Cards Due")
         .description("How many cards are ready to study, and your streak.")

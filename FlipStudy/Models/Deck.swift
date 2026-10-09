@@ -38,6 +38,10 @@ final class Deck {
     var subject: String = ""
     var createdAt: Date = Date.now
     var source: DeckSource = DeckSource.manual
+    /// A `DeckPalette` raw value, or -1 until someone picks a colour.
+    var colorIndex: Int = -1
+    /// The deck's emoji, or empty until someone picks one.
+    var emoji: String = ""
 
     @Relationship(deleteRule: .cascade, inverse: \Card.deck)
     var cards: [Card]? = []

@@ -462,6 +462,8 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards, and to scan a family code.";
 				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Ocean AppIcon-Grape AppIcon-Berry AppIcon-Tangerine AppIcon-Sunshine AppIcon-Lime AppIcon-Mint AppIcon-Bubblegum";
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FlipStudy uses the microphone so you can practice saying your answers out loud.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "FlipStudy reads text from photos you choose to create study cards.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "FlipStudy uses speech recognition to check the answer you say out loud.";
@@ -497,6 +499,8 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "FlipStudy uses the camera to scan pages into study cards, and to scan a family code.";
 				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Ocean AppIcon-Grape AppIcon-Berry AppIcon-Tangerine AppIcon-Sunshine AppIcon-Lime AppIcon-Mint AppIcon-Bubblegum";
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FlipStudy uses the microphone so you can practice saying your answers out loud.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "FlipStudy reads text from photos you choose to create study cards.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "FlipStudy uses speech recognition to check the answer you say out loud.";

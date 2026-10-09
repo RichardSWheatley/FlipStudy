@@ -23,28 +23,41 @@ struct DeckDetailView: View {
 
     var body: some View {
         List {
+            Section {
+                DeckBanner(deck: deck)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            }
             if deck.allCards.isEmpty {
-                ContentUnavailableView {
-                    Label("No Cards", systemImage: "rectangle.stack.badge.plus")
-                } description: {
-                    Text("Tap the + button to add your first card.")
+                VStack(spacing: 10) {
+                    Text("✏️")
+                        .font(.system(size: 48))
+                    Text("No cards yet")
+                        .font(.headline)
+                    Text("Tap + to add your first card.")
+                        .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
             } else {
                 Section {
                     ForEach(sortedCards) { card in
                         Button {
                             editorCard = card
                         } label: {
-                            CardRow(card: card)
+                            CardRow(card: card, palette: deck.palette)
                         }
                         .buttonStyle(.plain)
                     }
                     .onDelete(perform: deleteCards)
+                } header: {
+                    Text("Cards")
                 }
             }
         }
         .navigationTitle(deck.title)
         .navigationBarTitleDisplayMode(.inline)
+        .tint(deck.palette.bottom)
         .safeAreaInset(edge: .bottom) {
             if !deck.allCards.isEmpty {
                 VStack(spacing: 10) {
@@ -52,16 +65,14 @@ struct DeckDetailView: View {
                         studyMode = .flashcards
                     } label: {
                         Label("Study", systemImage: "play.fill")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
+                            .font(.title3.bold())
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(ChunkyButtonStyle(deck.palette.gradient))
                     HStack(spacing: 10) {
-                        modeButton("Type It", systemImage: "keyboard", mode: .typeAnswer)
-                        modeButton("Quiz", systemImage: "checklist", mode: .multipleChoice)
+                        modeButton("Type It", systemImage: "keyboard", mode: .typeAnswer, palette: .ocean)
+                        modeButton("Quiz", systemImage: "checklist", mode: .multipleChoice, palette: .grape)
                             .disabled(!QuizBuilder.canQuiz(backs: deck.allCards.map(\.back)))
-                        modeButton("Match", systemImage: "square.grid.2x2", mode: .match)
+                        modeButton("Match", systemImage: "square.grid.2x2", mode: .match, palette: .tangerine)
                             .disabled(!QuizBuilder.canMatch(matchPairs))
                     }
                 }
@@ -118,15 +129,10 @@ struct DeckDetailView: View {
 
     /// Quiz and Match need at least three different cards; they stay greyed
     /// out until the deck has them.
-    private func modeButton(_ title: String, systemImage: String, mode: StudyMode) -> some View {
-        Button {
+    private func modeButton(_ title: String, systemImage: String, mode: StudyMode, palette: DeckPalette) -> some View {
+        ModeButton(title: title, systemImage: systemImage, palette: palette) {
             studyMode = mode
-        } label: {
-            Label(title, systemImage: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
     }
 
     private func deleteCards(_ offsets: IndexSet) {
@@ -137,14 +143,65 @@ struct DeckDetailView: View {
     }
 }
 
+/// The deck's colour, emoji and size at the top of its card list.
+private struct DeckBanner: View {
+    let deck: Deck
+
+    var body: some View {
+        let count = deck.allCards.count
+        HStack(spacing: 14) {
+            Text(deck.displayEmoji)
+                .font(.system(size: 52))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(deck.title)
+                    .font(.title2.bold())
+                    .lineLimit(2)
+                Text(deck.dueCount > 0
+                     ? "^[\(count) card](inflect: true) · \(deck.dueCount) ready to study"
+                     : "^[\(count) card](inflect: true)")
+                    .font(.subheadline.weight(.semibold))
+                    .opacity(0.9)
+            }
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(.white)
+        .shadow(color: .black.opacity(0.12), radius: 1, y: 1)
+        .padding(20)
+        .background(deck.palette.gradient, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A Type It / Quiz / Match button in its own bright colour.
+private struct ModeButton: View {
+    @Environment(\.isEnabled) private var isEnabled
+    let title: String
+    let systemImage: String
+    let palette: DeckPalette
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: systemImage)
+                    .font(.headline)
+                Text(title)
+                    .font(.caption.weight(.bold))
+            }
+        }
+        .buttonStyle(ChunkyButtonStyle(isEnabled ? AnyShapeStyle(palette.gradient) : AnyShapeStyle(Color.gray.opacity(0.35))))
+    }
+}
+
 private struct CardRow: View {
     let card: Card
+    let palette: DeckPalette
 
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(card.front)
-                    .font(.body.weight(.medium))
+                    .font(.body.weight(.semibold))
                     .lineLimit(2)
                 Text(card.back)
                     .font(.subheadline)
@@ -152,22 +209,28 @@ private struct CardRow: View {
                     .lineLimit(2)
             }
             Spacer()
-            BoxBadge(box: card.leitnerBox)
+            LevelDots(level: card.leitnerBox, palette: palette)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
     }
 }
 
-private struct BoxBadge: View {
-    let box: Int
+/// How well a card is known, as five dots filling up — friendlier than
+/// "Box 3" for a child.
+private struct LevelDots: View {
+    let level: Int
+    let palette: DeckPalette
 
     var body: some View {
-        Text("Box \(box)")
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(.quaternary, in: Capsule())
-            .foregroundStyle(.secondary)
+        HStack(spacing: 3) {
+            ForEach(1...Card.maxBox, id: \.self) { dot in
+                Circle()
+                    .fill(dot <= level ? AnyShapeStyle(palette.gradient) : AnyShapeStyle(Color.gray.opacity(0.2)))
+                    .frame(width: 8, height: 8)
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Level \(level) of \(Card.maxBox)")
     }
 }
