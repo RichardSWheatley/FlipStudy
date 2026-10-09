@@ -14,6 +14,9 @@ struct FlipStudyApp: App {
     @AppStorage(AppTheme.storageKey, store: AppTheme.defaults) private var themeRaw = AppTheme.classic.rawValue
 
     init() {
+        #if DEBUG
+        CloudSchema.initializeIfRequested()
+        #endif
         container = Persistence.makeContainer()
         #if DEBUG
         DemoDecks.insertIfRequested(into: container.mainContext)
