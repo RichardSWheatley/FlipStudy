@@ -86,7 +86,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     static var defaults: UserDefaults { UserDefaults(suiteName: WidgetSnapshot.appGroup) ?? .standard }
     static var current: AppTheme { AppTheme(rawValue: defaults.string(forKey: storageKey) ?? "") ?? .classic }
 
-    /// The deck colour this theme borrows; classic is the original icon's indigo.
+    /// The deck colour this theme is named after; nil for Classic.
     private var palette: DeckPalette? {
         switch self {
         case .classic: nil
@@ -101,11 +101,36 @@ enum AppTheme: String, CaseIterable, Identifiable {
         }
     }
 
-    var top: Color { palette?.top ?? Color(red: 0.38, green: 0.47, blue: 0.98) }
-    var bottom: Color { palette?.bottom ?? Color(red: 0.21, green: 0.27, blue: 0.85) }
+    /// The icon's two tones, in Display P3. Must match scripts/make-app-icons.swift,
+    /// so the app, its widget and its Home Screen icon are the same colours.
+    private var tones: (top: (Double, Double, Double), bottom: (Double, Double, Double)) {
+        switch self {
+        case .classic: ((0.33, 0.50, 1.00), (0.48, 0.22, 0.94))
+        case .ocean: ((0.20, 0.80, 1.00), (0.10, 0.38, 0.95))
+        case .grape: ((0.80, 0.56, 1.00), (0.45, 0.20, 0.92))
+        case .berry: ((1.00, 0.46, 0.44), (0.88, 0.10, 0.42))
+        case .tangerine: ((1.00, 0.76, 0.24), (1.00, 0.36, 0.12))
+        case .sunshine: ((1.00, 0.88, 0.28), (1.00, 0.58, 0.04))
+        case .lime: ((0.72, 0.92, 0.24), (0.18, 0.64, 0.26))
+        case .mint: ((0.36, 0.95, 0.80), (0.00, 0.58, 0.54))
+        case .bubblegum: ((1.00, 0.62, 0.80), (0.90, 0.18, 0.60))
+        }
+    }
 
+    var top: Color { Color(.displayP3, red: tones.top.0, green: tones.top.1, blue: tones.top.2) }
+    var bottom: Color { Color(.displayP3, red: tones.bottom.0, green: tones.bottom.1, blue: tones.bottom.2) }
+
+    /// Light at the top, deep at the bottom, like the icon.
     var gradient: LinearGradient {
-        LinearGradient(colors: [top, bottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+        LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
+    }
+
+    /// Warm themes get white sparkles on the icon; yellow ones would vanish.
+    var sparkleColor: Color {
+        switch self {
+        case .tangerine, .sunshine, .lime: .white
+        default: Color(.displayP3, red: 1, green: 0.86, blue: 0.30)
+        }
     }
 
     var name: String { palette?.name ?? "Classic" }

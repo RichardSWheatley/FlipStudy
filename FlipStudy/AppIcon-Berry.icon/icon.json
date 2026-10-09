@@ -1,0 +1,35 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:1.00000,0.46000,0.44000,1.00000",
+      "display-p3:0.88000,0.10000,0.42000,1.00000"
+    ]
+  },
+  "groups" : [
+    {
+      "layers" : [
+        { "image-name" : "sparkles.png", "name" : "sparkles", "glass" : true }
+      ],
+      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "translucency" : { "enabled" : false, "value" : 0.5 }
+    },
+    {
+      "layers" : [
+        { "image-name" : "question.png", "name" : "question", "glass" : false },
+        { "image-name" : "front-card.png", "name" : "front-card", "glass" : true }
+      ],
+      "shadow" : { "kind" : "neutral", "opacity" : 0.55 },
+      "translucency" : { "enabled" : true, "value" : 0.15 }
+    },
+    {
+      "layers" : [
+        { "image-name" : "back-card.png", "name" : "back-card", "glass" : true, "opacity" : 0.55 }
+      ],
+      "shadow" : { "kind" : "neutral", "opacity" : 0.4 },
+      "translucency" : { "enabled" : true, "value" : 0.6 }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [ "iOS" ]
+  }
+}

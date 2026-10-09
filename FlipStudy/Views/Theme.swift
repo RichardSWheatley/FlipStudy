@@ -195,26 +195,36 @@ struct ThemeIconPreview: View {
             .overlay {
                 ZStack {
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(.white.opacity(0.4))
-                        .frame(width: 30, height: 21)
-                        .rotationEffect(.degrees(11))
-                        .offset(x: -4, y: -5)
+                        .fill(.white.opacity(0.45))
+                        .frame(width: 29, height: 20)
+                        .rotationEffect(.degrees(12))
+                        .offset(x: -6, y: -4)
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(.white)
                         .frame(width: 31, height: 22)
-                        .rotationEffect(.degrees(-6))
-                        .offset(x: 3, y: 4)
+                        .rotationEffect(.degrees(-7))
+                        .offset(x: 1, y: 5)
+                        .shadow(color: .black.opacity(0.15), radius: 1.5, y: 1)
                         .overlay {
                             Text("?")
-                                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                                .font(.system(size: 15, weight: .black, design: .rounded))
                                 .foregroundStyle(theme.bottom)
-                                .rotationEffect(.degrees(-6))
-                                .offset(x: 3, y: 4)
+                                .rotationEffect(.degrees(-7))
+                                .offset(x: 1, y: 5)
                         }
+                    Image(systemName: "sparkle")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(theme.sparkleColor)
+                        .offset(x: 16, y: -15)
                 }
             }
+            .overlay {
+                // A hint of the glass rim the real icon has.
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .strokeBorder(.white.opacity(0.35), lineWidth: 1)
+            }
             .frame(width: 54, height: 54)
-            .shadow(color: theme.bottom.opacity(0.3), radius: 4, y: 2)
+            .shadow(color: theme.bottom.opacity(0.35), radius: 4, y: 2)
     }
 }
 
