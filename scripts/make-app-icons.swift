@@ -1,12 +1,14 @@
 #!/usr/bin/env swift
 // Builds FlipStudy's app icons as Liquid Glass (Icon Composer) documents: two
-// glass cards, a "?" and a pair of sparkles over a two-tone background, once
-// per colour kids can pick in Settings. iOS adds the glass, the light and the
+// glass cards with a grade on the front (an "A+", or a "100" with a teacher's
+// double underline) and a pair of sparkles over a two-tone background — one
+// for every colour and picture kids can pick in Settings. iOS adds the glass, the light and the
 // dark, clear and tinted versions itself. Run from the repo root:
 //
 //   swift scripts/make-app-icons.swift
 //
-// Writes FlipStudy/AppIcon.icon (Classic) and FlipStudy/AppIcon-<Name>.icon,
+// Writes FlipStudy/AppIcon.icon (Classic, A+), FlipStudy/AppIcon-<Colour>.icon
+// (A+) and FlipStudy/AppIcon-<Colour>-100.icon,
 // plus a preview of each into $TMPDIR/flipstudy-icon-previews/ (rendered by
 // Icon Composer's own ictool, so it shows exactly what iOS will draw).
 
@@ -60,17 +62,53 @@ func card(_ ctx: CGContext, center: CGPoint, width: CGFloat, height: CGFloat, de
     ctx.restoreGState()
 }
 
-func questionMark(_ ctx: CGContext, center: CGPoint, degrees: CGFloat, colour: CGColor) {
-    let base = NSFont.systemFont(ofSize: 300, weight: .black)
-    let font = NSFont(descriptor: base.fontDescriptor.withDesign(.rounded) ?? base.fontDescriptor, size: 300) ?? base
-    let line = CTLineCreateWithAttributedString(NSAttributedString(string: "?", attributes: [.font: font, .foregroundColor: colour]))
-    let bounds = CTLineGetBoundsWithOptions(line, .useGlyphPathBounds)
-    ctx.saveGState()
-    ctx.translateBy(x: center.x, y: center.y)
-    ctx.rotate(by: degrees * .pi / 180)
-    ctx.textPosition = CGPoint(x: -bounds.midX, y: -bounds.midY)
-    CTLineDraw(line, ctx)
-    ctx.restoreGState()
+/// Heavy rounded text, scaled to fit a box, centred on the origin.
+func fittedText(_ ctx: CGContext, _ text: String, maxWidth: CGFloat, maxHeight: CGFloat, dy: CGFloat = 0, colour: CGColor) {
+    func line(_ size: CGFloat) -> CTLine {
+        let base = NSFont.systemFont(ofSize: size, weight: .black)
+        let font = NSFont(descriptor: base.fontDescriptor.withDesign(.rounded) ?? base.fontDescriptor, size: size) ?? base
+        return CTLineCreateWithAttributedString(NSAttributedString(
+            string: text, attributes: [.font: font, .foregroundColor: colour, .kern: -size * 0.03]))
+    }
+    let probe = CTLineGetBoundsWithOptions(line(100), .useGlyphPathBounds)
+    let fitted = line(min(maxWidth / probe.width, maxHeight / probe.height) * 100)
+    let bounds = CTLineGetBoundsWithOptions(fitted, .useGlyphPathBounds)
+    ctx.textPosition = CGPoint(x: -bounds.midX, y: -bounds.midY + dy)
+    CTLineDraw(fitted, ctx)
+}
+
+/// One stroke of a teacher's pen: a slight swoop.
+func penStroke(_ ctx: CGContext, y: CGFloat, halfWidth: CGFloat, colour: CGColor) {
+    ctx.setStrokeColor(colour)
+    ctx.setLineWidth(26)
+    ctx.setLineCap(.round)
+    ctx.move(to: CGPoint(x: -halfWidth, y: y))
+    ctx.addQuadCurve(to: CGPoint(x: halfWidth, y: y + 6), control: CGPoint(x: 0, y: y - 10))
+    ctx.strokePath()
+}
+
+/// The pictures kids can pick for the front card. Raw values match
+/// AppIconPicture in Shared/Palette.swift.
+enum Picture: String, CaseIterable {
+    case aPlus, hundred
+
+    /// Suffix on the icon's name; the A+ is the original, so it has none.
+    var suffix: String { self == .aPlus ? "" : "-100" }
+
+    /// Draws centred on the front card, already tilted with it.
+    func draw(_ ctx: CGContext, colour: CGColor) {
+        switch self {
+        case .aPlus:
+            fittedText(ctx, "A+", maxWidth: 380, maxHeight: 250, colour: colour)
+        case .hundred:
+            ctx.saveGState()
+            ctx.rotate(by: 6 * .pi / 180)
+            fittedText(ctx, "100", maxWidth: 400, maxHeight: 210, dy: 40, colour: colour)
+            penStroke(ctx, y: -95, halfWidth: 190, colour: colour)
+            penStroke(ctx, y: -140, halfWidth: 165, colour: colour)
+            ctx.restoreGState()
+        }
+    }
 }
 
 /// A four-pointed star with pinched, curved sides.
@@ -115,7 +153,7 @@ func iconJSON(_ theme: Theme) -> String {
         },
         {
           "layers" : [
-            { "image-name" : "question.png", "name" : "question", "glass" : false },
+            { "image-name" : "picture.png", "name" : "picture", "glass" : false },
             { "image-name" : "front-card.png", "name" : "front-card", "glass" : true }
           ],
           "shadow" : { "kind" : "neutral", "opacity" : 0.55 },
@@ -149,7 +187,13 @@ let ictool = "/Applications/Xcode.app/Contents/Applications/Icon Composer.app/Co
 // Card positions (Core Graphics: y=0 at the bottom). Shared by every colour.
 let front = CGPoint(x: 536, y: 440)
 for theme in themes {
-    let iconName = theme.name.isEmpty ? "AppIcon" : "AppIcon-\(theme.name)"
+  for picture in Picture.allCases {
+    let colourName = theme.name.isEmpty ? "Classic" : theme.name
+    // Classic + A+ is the primary icon, "AppIcon"; Classic + 100 still needs
+    // its colour in the name.
+    let iconName = theme.name.isEmpty && picture == .aPlus
+        ? "AppIcon"
+        : "AppIcon-\(colourName)\(picture.suffix)"
     let bundle = root.appendingPathComponent("\(iconName).icon")
     let assets = bundle.appendingPathComponent("Assets")
     try? FileManager.default.removeItem(at: bundle)
@@ -160,8 +204,11 @@ for theme in themes {
                  to: assets.appendingPathComponent("back-card.png"))
     try writePNG(canvas { card($0, center: front, width: 600, height: 416, degrees: 7) },
                  to: assets.appendingPathComponent("front-card.png"))
-    try writePNG(canvas { questionMark($0, center: front, degrees: 7, colour: colour(theme.bottom)) },
-                 to: assets.appendingPathComponent("question.png"))
+    try writePNG(canvas { ctx in
+        ctx.translateBy(x: front.x, y: front.y)
+        ctx.rotate(by: 7 * .pi / 180)
+        picture.draw(ctx, colour: colour(theme.bottom))
+    }, to: assets.appendingPathComponent("picture.png"))
     try writePNG(canvas {
         sparkle($0, center: CGPoint(x: 806, y: 770), radius: 118, colour: sparkleColour)
         sparkle($0, center: CGPoint(x: 676, y: 884), radius: 46, colour: sparkleColour)
@@ -171,12 +218,13 @@ for theme in themes {
     let preview = Process()
     preview.executableURL = URL(fileURLWithPath: ictool)
     preview.arguments = [bundle.path, "--export-image",
-                         "--output-file", previews.appendingPathComponent("\(theme.name.isEmpty ? "Classic" : theme.name).png").path,
+                         "--output-file", previews.appendingPathComponent("\(colourName)\(picture.suffix).png").path,
                          "--platform", "iOS", "--rendition", "Default",
                          "--width", "1024", "--height", "1024", "--scale", "1"]
     preview.standardOutput = FileHandle.nullDevice
     try preview.run()
     preview.waitUntilExit()
     print(iconName)
+  }
 }
 print("Previews: \(previews.path)")

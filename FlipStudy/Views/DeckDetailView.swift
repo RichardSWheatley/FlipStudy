@@ -24,9 +24,17 @@ struct DeckDetailView: View {
     var body: some View {
         List {
             Section {
-                DeckBanner(deck: deck)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
+                // Tapping the banner is the quick way to change the deck's
+                // colour and emoji (or its name).
+                Button {
+                    showingEditDeck = true
+                } label: {
+                    DeckBanner(deck: deck)
+                }
+                .buttonStyle(SquishButtonStyle())
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .accessibilityHint("Change the deck's name, color and emoji")
             }
             if deck.allCards.isEmpty {
                 VStack(spacing: 10) {
@@ -163,6 +171,10 @@ private struct DeckBanner: View {
                     .opacity(0.9)
             }
             Spacer(minLength: 0)
+            Image(systemName: "paintbrush.pointed.fill")
+                .font(.subheadline)
+                .padding(8)
+                .background(.white.opacity(0.25), in: Circle())
         }
         .foregroundStyle(.white)
         .shadow(color: .black.opacity(0.12), radius: 1, y: 1)

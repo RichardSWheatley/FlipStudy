@@ -29,6 +29,7 @@ struct HomeView: View {
     /// Long-pressing a deck asks before deleting it; with sync on, it goes
     /// from every device.
     @State private var deckToDelete: Deck?
+    @State private var deckToEdit: Deck?
 
     private var settings: AppSettings? { settingsList.first }
 
@@ -89,6 +90,11 @@ struct HomeView: View {
                                     }
                                     .buttonStyle(SquishButtonStyle())
                                     .contextMenu {
+                                        Button {
+                                            deckToEdit = deck
+                                        } label: {
+                                            Label("Change Color & Emoji", systemImage: "paintbrush.pointed")
+                                        }
                                         Button(role: .destructive) {
                                             deckToDelete = deck
                                         } label: {
@@ -144,6 +150,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingNewDeck) {
                 CreateDeckView()
+            }
+            .sheet(item: $deckToEdit) { deck in
+                CreateDeckView(deck: deck)
             }
             .sheet(isPresented: $showingPhotoDeck) {
                 PhotoDeckView()

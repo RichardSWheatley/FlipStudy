@@ -37,11 +37,27 @@ final class ThemeTests: XCTestCase {
     }
 
     func test_appTheme_iconNamesMatchTheAlternateIcons() {
-        XCTAssertNil(AppTheme.classic.iconName)
-        XCTAssertEqual(AppTheme.bubblegum.iconName, "AppIcon-Bubblegum")
-        // Every alternate icon the build ships must belong to a theme.
-        let names = Set(AppTheme.allCases.compactMap(\.iconName))
-        XCTAssertEqual(names.count, AppTheme.allCases.count - 1)
+        XCTAssertNil(AppTheme.classic.iconName(with: .aPlus), "Classic A+ is the primary icon")
+        XCTAssertEqual(AppTheme.classic.iconName(with: .hundred), "AppIcon-Classic-100")
+        XCTAssertEqual(AppTheme.bubblegum.iconName(with: .aPlus), "AppIcon-Bubblegum")
+        XCTAssertEqual(AppTheme.bubblegum.iconName(with: .hundred), "AppIcon-Bubblegum-100")
+        // One alternate per colour and picture, less the primary.
+        let names = Set(AppTheme.allCases.flatMap { theme in
+            AppIconPicture.allCases.compactMap { theme.iconName(with: $0) }
+        })
+        XCTAssertEqual(names.count, AppTheme.allCases.count * AppIconPicture.allCases.count - 1)
+    }
+
+    func test_everyIconNameHasAnIconFileAndIsListedInTheBuild() throws {
+        // The .icon files and the build setting are written separately; a
+        // name missing from either one means a picker choice that does nothing.
+        let names = AppTheme.allCases.flatMap { theme in
+            AppIconPicture.allCases.compactMap { theme.iconName(with: $0) }
+        }
+        let alternates = Bundle.main.object(forInfoDictionaryKey: "CFBundleIcons")
+            .flatMap { $0 as? [String: Any] }?["CFBundleAlternateIcons"] as? [String: Any]
+        let shipped = Set(alternates?.keys.map { $0 } ?? [])
+        XCTAssertEqual(Set(names), shipped)
     }
 
     func test_cheer_starsAndHeadline() {

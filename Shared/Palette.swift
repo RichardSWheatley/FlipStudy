@@ -135,6 +135,29 @@ enum AppTheme: String, CaseIterable, Identifiable {
 
     var name: String { palette?.name ?? "Classic" }
 
-    /// The alternate app icon for this theme; nil is the primary icon.
-    var iconName: String? { palette.map { "AppIcon-\($0.name)" } }
+    /// The Home Screen icon for this colour with `picture` on the front card;
+    /// nil is the primary icon (Classic with the A+). Names match the .icon
+    /// files scripts/make-app-icons.swift writes.
+    func iconName(with picture: AppIconPicture = .aPlus) -> String? {
+        switch picture {
+        case .aPlus: palette.map { "AppIcon-\($0.name)" }
+        case .hundred: "AppIcon-\(name)-100"
+        }
+    }
+}
+
+/// The grade on the icon's front card, picked alongside the colour.
+enum AppIconPicture: String, CaseIterable, Identifiable {
+    case aPlus, hundred
+
+    var id: String { rawValue }
+
+    static let storageKey = "appIconPicture"
+
+    var name: String {
+        switch self {
+        case .aPlus: "A+"
+        case .hundred: "100"
+        }
+    }
 }

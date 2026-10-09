@@ -188,6 +188,7 @@ struct DeckBackdrop: View {
 /// A tiny copy of the app icon in a theme's colour, for the picker.
 struct ThemeIconPreview: View {
     let theme: AppTheme
+    var picture: AppIconPicture = .aPlus
 
     var body: some View {
         RoundedRectangle(cornerRadius: 13, style: .continuous)
@@ -202,16 +203,10 @@ struct ThemeIconPreview: View {
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(.white)
                         .frame(width: 31, height: 22)
+                        .shadow(color: .black.opacity(0.15), radius: 1.5, y: 1)
+                        .overlay { cardPicture }
                         .rotationEffect(.degrees(-7))
                         .offset(x: 1, y: 5)
-                        .shadow(color: .black.opacity(0.15), radius: 1.5, y: 1)
-                        .overlay {
-                            Text("?")
-                                .font(.system(size: 15, weight: .black, design: .rounded))
-                                .foregroundStyle(theme.bottom)
-                                .rotationEffect(.degrees(-7))
-                                .offset(x: 1, y: 5)
-                        }
                     Image(systemName: "sparkle")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(theme.sparkleColor)
@@ -226,52 +221,86 @@ struct ThemeIconPreview: View {
             .frame(width: 54, height: 54)
             .shadow(color: theme.bottom.opacity(0.35), radius: 4, y: 2)
     }
+
+    @ViewBuilder
+    private var cardPicture: some View {
+        switch picture {
+        case .aPlus:
+            Text("A+")
+                .font(.system(size: 12, weight: .black, design: .rounded))
+                .foregroundStyle(theme.bottom)
+        case .hundred:
+            VStack(spacing: 0.5) {
+                Text("100")
+                    .font(.system(size: 9.5, weight: .black, design: .rounded))
+                Capsule().frame(width: 17, height: 1.6)
+                Capsule().frame(width: 14, height: 1.6)
+            }
+            .foregroundStyle(theme.bottom)
+            .rotationEffect(.degrees(6))
+        }
+    }
 }
 
 /// "Pick your colour": tints the app, recolours the widget, and swaps the
-/// home-screen icon to match.
+/// Home Screen icon to match — in the colour and with the grade picked here.
 struct ThemePicker: View {
     @AppStorage(AppTheme.storageKey, store: AppTheme.defaults) private var themeRaw = AppTheme.classic.rawValue
+    @AppStorage(AppIconPicture.storageKey, store: AppTheme.defaults) private var pictureRaw = AppIconPicture.aPlus.rawValue
+
+    private var theme: AppTheme { AppTheme(rawValue: themeRaw) ?? .classic }
+    private var picture: AppIconPicture { AppIconPicture(rawValue: pictureRaw) ?? .aPlus }
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 14) {
-            ForEach(AppTheme.allCases) { theme in
-                let selected = theme.rawValue == themeRaw
-                Button {
-                    choose(theme)
-                } label: {
-                    VStack(spacing: 5) {
-                        ThemeIconPreview(theme: theme)
-                            .overlay(alignment: .bottomTrailing) {
-                                if selected {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.title3)
-                                        .symbolRenderingMode(.palette)
-                                        .foregroundStyle(.white, .green)
-                                        .offset(x: 6, y: 6)
-                                }
-                            }
-                        Text(theme.name)
-                            .font(.caption2.weight(selected ? .bold : .regular))
-                            .foregroundStyle(selected ? .primary : .secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
+        VStack(spacing: 14) {
+            Picker("Icon picture", selection: Binding(get: { picture }, set: { apply(theme, $0) })) {
+                ForEach(AppIconPicture.allCases) { option in
+                    Text(option.name).tag(option)
                 }
-                .buttonStyle(SquishButtonStyle())
-                .accessibilityLabel(theme.name)
-                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+            .pickerStyle(.segmented)
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 14) {
+                ForEach(AppTheme.allCases) { option in
+                    let selected = option == theme
+                    Button {
+                        apply(option, picture)
+                    } label: {
+                        VStack(spacing: 5) {
+                            ThemeIconPreview(theme: option, picture: picture)
+                                .overlay(alignment: .bottomTrailing) {
+                                    if selected {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.title3)
+                                            .symbolRenderingMode(.palette)
+                                            .foregroundStyle(.white, .green)
+                                            .offset(x: 6, y: 6)
+                                    }
+                                }
+                            Text(option.name)
+                                .font(.caption2.weight(selected ? .bold : .regular))
+                                .foregroundStyle(selected ? .primary : .secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
+                    }
+                    .buttonStyle(SquishButtonStyle())
+                    .accessibilityLabel(option.name)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
             }
         }
         .padding(.vertical, 6)
     }
 
-    private func choose(_ theme: AppTheme) {
-        themeRaw = theme.rawValue
+    private func apply(_ newTheme: AppTheme, _ newPicture: AppIconPicture) {
+        themeRaw = newTheme.rawValue
+        pictureRaw = newPicture.rawValue
         WidgetCenter.shared.reloadAllTimelines()
         let app = UIApplication.shared
-        guard app.supportsAlternateIcons, app.alternateIconName != theme.iconName else { return }
-        app.setAlternateIconName(theme.iconName) { _ in }
+        let icon = newTheme.iconName(with: newPicture)
+        guard app.supportsAlternateIcons, app.alternateIconName != icon else { return }
+        app.setAlternateIconName(icon) { _ in }
     }
 }
 

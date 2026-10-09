@@ -136,9 +136,9 @@ struct SettingsView: View {
                 Section {
                     ThemePicker()
                 } header: {
-                    Text("🎨 Pick Your Color")
+                    Text("🎨 Pick Your Icon")
                 } footer: {
-                    Text("Changes FlipStudy's colors, its widget, and its icon on your Home Screen.")
+                    Text("Choose a grade and a color. They change FlipStudy's colors, its widget, and its icon on your Home Screen.")
                 }
 
                 Section {
