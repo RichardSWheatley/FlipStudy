@@ -8,7 +8,7 @@
  *
  * Two endpoints:
  *   POST /v1/redeem    { code, device }  -> { token, label }
- *   POST /v1/generate  (Bearer token)    -> { cards } | { terms }
+ *   POST /v1/generate  (Bearer token)    -> { cards } | { terms } | { explanation, tip }
  *
  * Codes are stored hashed, so a dump of the KV namespace never reveals a
  * working code. Tokens are bound to one device id, which is what lets you
@@ -26,6 +26,9 @@ const MAX_TOPIC_CHARS = 200;
 const MAX_COUNT = 30;
 /** Room for a full page of cards. Comfortably above 30 cards of prose. */
 const MAX_OUTPUT_TOKENS = 4096;
+/** One card's two sides, and the few sentences explaining it. */
+const MAX_CARD_SIDE_CHARS = 500;
+const MAX_EXPLAIN_OUTPUT_TOKENS = 400;
 
 const CARDS_SCHEMA = {
   type: "object",
@@ -43,6 +46,15 @@ const CARDS_SCHEMA = {
     },
   },
   required: ["cards"],
+};
+
+const EXPLAIN_SCHEMA = {
+  type: "object",
+  properties: {
+    explanation: { type: "string" },
+    tip: { type: "string" },
+  },
+  required: ["explanation", "tip"],
 };
 
 const TERMS_SCHEMA = {
@@ -80,6 +92,17 @@ kept.`,
   topic: `You are a helpful study assistant that writes clear, accurate flashcards.
 Fronts are brief terms or questions. Backs are short, correct answers or
 definitions. Avoid trick questions and keep the language age-appropriate.`,
+
+  explain: `You are a patient tutor helping a student who just got a flashcard wrong.
+Explain why the answer on the card is right, in plain words a young student
+understands. Be brief and accurate, and never pad. For a vocabulary card, give
+what the word means and one short example of it in use; the example must be
+natural and grammatically correct, so leave it out rather than guess. Then give
+one memory trick that makes the answer stick: a simple picture, a rhyme, or a
+link to something familiar. A trick has to really work — never invent an
+acronym or phrase whose letters don't match the answer. If the card's answer
+looks wrong or incomplete, say so gently and give the correct answer instead of
+defending it.`,
 
   concepts: `You build English study lists for language learners. Always write in English,
 no matter what language or country the topic mentions — that is only the
@@ -158,7 +181,7 @@ async function authenticate(request, env) {
   return { ...bound, record };
 }
 
-async function runModel(env, system, user, schema) {
+async function runModel(env, system, user, schema, maxTokens = MAX_OUTPUT_TOKENS) {
   const result = await env.AI.run(MODEL, {
     messages: [
       { role: "system", content: system },
@@ -170,7 +193,7 @@ async function runModel(env, system, user, schema) {
     // — which fails to parse and surfaces as a mystifying "had a problem
     // making these cards". This is a ceiling, not a reservation: neurons are
     // billed on what the model actually generates.
-    max_tokens: MAX_OUTPUT_TOKENS,
+    max_tokens: maxTokens,
   });
 
   // Workers AI returns the structured payload under `response`, sometimes
@@ -219,6 +242,19 @@ function buildPrompt(body) {
         system: SYSTEM.topic,
         schema: CARDS_SCHEMA,
         user: `Create ${count} study flashcards about: ${topic}.\nEach card has a short prompt on the front and a concise answer on the back. Keep them factual and suitable for a student.`,
+      };
+    }
+
+    case "explain": {
+      const front = String(body.front || "").slice(0, MAX_CARD_SIDE_CHARS);
+      const back = String(body.back || "").slice(0, MAX_CARD_SIDE_CHARS);
+      const subject = String(body.topic || "").slice(0, MAX_TOPIC_CHARS);
+      if (!front.trim() || !back.trim()) return null;
+      return {
+        system: SYSTEM.explain,
+        schema: EXPLAIN_SCHEMA,
+        maxTokens: MAX_EXPLAIN_OUTPUT_TOKENS,
+        user: `${subject.trim() ? `The deck is about: ${subject}\n` : ""}FRONT OF THE CARD:\n${front}\n\nANSWER ON THE BACK:\n${back}\n\nIn "explanation", explain the answer in two to four short sentences. In "tip", give one short memory trick.`,
       };
     }
 
@@ -290,7 +326,7 @@ async function handleGenerate(request, env) {
 
   let payload;
   try {
-    payload = await runModel(env, prompt.system, prompt.user, prompt.schema);
+    payload = await runModel(env, prompt.system, prompt.user, prompt.schema, prompt.maxTokens);
   } catch (err) {
     // Never echo the model's raw error to the phone; it can carry internals.
     console.error("model_error", err?.message);
@@ -306,6 +342,12 @@ async function handleGenerate(request, env) {
       }))
       .filter((c) => c.front);
     return json({ cards });
+  }
+
+  if (prompt.schema === EXPLAIN_SCHEMA) {
+    const explanation = String(payload.explanation || "").trim();
+    if (!explanation) return fail("model_error", 502);
+    return json({ explanation, tip: String(payload.tip || "").trim() });
   }
 
   const terms = (payload.terms || [])

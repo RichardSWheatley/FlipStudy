@@ -40,6 +40,10 @@ struct StudyView: View {
     @State private var choices: [String] = []
     @State private var picked: String?
 
+    // Explain This Card (FlipStudy Cloud).
+    @State private var explainingCard: Card?
+    @State private var explanations: [String: CardExplanation] = [:]
+
     var body: some View {
         NavigationStack {
             Group {
@@ -92,6 +96,31 @@ struct StudyView: View {
         .onDisappear { StudyProgress.refresh(context: context, settings: settings) }
         .sheet(isPresented: $showingAddCard, onDismiss: buildQueue) {
             CardEditorView(deck: deck, card: nil)
+        }
+        .sheet(item: $explainingCard) { card in
+            ExplainCardView(front: card.front, back: card.back,
+                            subject: deck.subject.isEmpty ? deck.title : deck.subject,
+                            cache: $explanations)
+        }
+    }
+
+    /// Explaining sends the card to FlipStudy Cloud, so it's offered only when
+    /// the cloud engine is the one in use — never to someone who chose to
+    /// keep their cards on the device.
+    private var canExplain: Bool { CardEngine.active(for: settings) == .cloud }
+
+    @ViewBuilder
+    private func explainButton(for card: Card) -> some View {
+        if canExplain {
+            Button {
+                speech.stop()
+                explainingCard = card
+            } label: {
+                Label("Explain", systemImage: "sparkles")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .tint(.accentColor)
         }
     }
 
@@ -187,7 +216,10 @@ struct StudyView: View {
                         spokenResult(score: score)
                     }
 
-                    listenButton(for: card)
+                    HStack(spacing: 12) {
+                        listenButton(for: card)
+                        explainButton(for: card)
+                    }
 
                     HStack(spacing: 16) {
                         answerButton(
@@ -228,6 +260,7 @@ struct StudyView: View {
             if let result = typedResult {
                 VStack(spacing: 16) {
                     typedVerdict(result, card: card)
+                    explainButton(for: card)
                     HStack(spacing: 16) {
                         if !result.isRight {
                             // Typed answers can be right in other words; the
@@ -326,8 +359,11 @@ struct StudyView: View {
                 }
             }
             if let picked {
-                answerButton(title: "Next", systemImage: "arrow.right", tint: .accentColor) {
-                    advance(correct: isAnswer(picked, for: card))
+                VStack(spacing: 12) {
+                    explainButton(for: card)
+                    answerButton(title: "Next", systemImage: "arrow.right", tint: .accentColor) {
+                        advance(correct: isAnswer(picked, for: card))
+                    }
                 }
                 .transition(.opacity)
             }

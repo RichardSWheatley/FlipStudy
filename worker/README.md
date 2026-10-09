@@ -90,12 +90,17 @@ request. To revoke a single phone instead, delete its token:
 | Route | Body | Returns |
 |---|---|---|
 | `POST /v1/redeem` | `{ code, device }` | `{ token, label }` |
-| `POST /v1/generate` | `{ mode, ... }` + `Authorization: Bearer <token>` | `{ cards }` or `{ terms }` |
+| `POST /v1/generate` | `{ mode, ... }` + `Authorization: Bearer <token>` | `{ cards }`, `{ terms }` or `{ explanation, tip }` |
 | `GET /health` | — | `{ ok: true }` |
 
-`mode` is one of `qa`, `terms` (both take `text`), `topic`, `concepts` (both
+`mode` is one of `qa`, `vocab` (both take `text`), `topic`, `concepts` (both
 take `topic`; `concepts` also takes `style`). These mirror the four entry points
 in `AICardGenerator` so both engines produce the same kind of cards.
+
+`explain` takes one card's `front` and `back` (and the deck's subject as
+`topic`) and returns a short explanation plus a memory trick, for "Explain This
+Card" in the study screen. It counts against the same daily allowance as making
+cards, so a code's `--daily` limit covers both.
 
 Errors are codes, never model internals: `invalid_code`, `device_limit`,
 `unauthorized`, `quota_exceeded`, `model_error`, `bad_request`.

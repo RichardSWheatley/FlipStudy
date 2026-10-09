@@ -125,7 +125,7 @@ struct SettingsView: View {
         }
         return settings?.prefersOnDeviceCards == true
             ? "Cards are being made on this phone, so no text is sent anywhere. Turn this off to use FlipStudy Cloud again."
-            : "Cards are made by FlipStudy Cloud. The text you scan or type is sent over an encrypted connection to make them, and isn't stored there."
+            : "Cards are made by FlipStudy Cloud. The text you scan or type, and any card you ask it to explain, is sent over an encrypted connection and isn't stored there."
     }
 
     var body: some View {

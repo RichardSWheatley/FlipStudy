@@ -51,6 +51,27 @@ enum CloudCardError: LocalizedError {
             return "The AI couldn't find anything to study in this text. Edit the text and redo, or scan a different page."
         }
     }
+
+    /// The same failures, worded for "Explain This Card" rather than for
+    /// making cards.
+    var explanationMessage: String {
+        switch self {
+        case .quotaExceeded:
+            return "This code has used all of FlipStudy Cloud it can for today. Try again tomorrow."
+        case .server, .empty, .tooMuchText:
+            return "FlipStudy Cloud couldn't explain this card. Try again in a moment."
+        case .offline:
+            return "Explaining a card needs the internet. Reconnect and try again."
+        default:
+            return errorDescription ?? "Something went wrong."
+        }
+    }
+}
+
+/// Why a card's answer is right, and a trick for remembering it.
+struct CardExplanation: Equatable {
+    let explanation: String
+    let tip: String
 }
 
 /// Card generation through FlipStudy Cloud — the Cloudflare Worker that runs a
@@ -165,6 +186,22 @@ enum CloudCardGenerator {
         return items
     }
 
+    // MARK: - Explaining a card
+
+    /// A short explanation of why the back answers the front, and a memory
+    /// trick, for a card the learner just missed. `subject` is the deck's
+    /// subject or title, so "bank" in an economics deck isn't explained as a
+    /// river bank. If the card itself is wrong, the explanation says so.
+    static func explain(front: String, back: String, subject: String) async throws -> CardExplanation {
+        let response: ExplainResponse = try await post(
+            GenerateRequest(mode: "explain", topic: subject, front: front, back: back, count: 1)
+        )
+        let explanation = response.explanation.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !explanation.isEmpty else { throw CloudCardError.empty }
+        return CardExplanation(explanation: explanation,
+                               tip: response.tip.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
     // MARK: - Transport
 
     private static func post<T: Decodable>(_ body: GenerateRequest) async throws -> T {
@@ -213,7 +250,14 @@ enum CloudCardGenerator {
         var text: String?
         var topic: String?
         var style: String?
+        var front: String?
+        var back: String?
         let count: Int
+    }
+
+    private struct ExplainResponse: Decodable {
+        let explanation: String
+        let tip: String
     }
 
     private struct CardsResponse: Decodable {

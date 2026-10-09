@@ -70,7 +70,7 @@ struct FamilyCodeView: View {
                     }
                     .disabled(!canRedeem)
                 } footer: {
-                    Text("FlipStudy Cloud makes cards with a much larger AI than the one built into this phone, so it works even on iPhones without Apple Intelligence. The text you scan or type is sent over an encrypted connection to FlipStudy's own service to make the cards, and is not stored there. Everything else — your decks, your study progress — stays on this phone.")
+                    Text("FlipStudy Cloud makes cards with a much larger AI than the one built into this phone, so it works even on iPhones without Apple Intelligence. The text you scan or type, and any card you ask it to explain, is sent over an encrypted connection to FlipStudy's own service, and is not stored there. Everything else — your decks, your study progress — stays on this phone.")
                 }
             }
             .navigationTitle("FlipStudy Cloud")
