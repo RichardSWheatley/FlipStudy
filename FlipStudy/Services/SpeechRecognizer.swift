@@ -207,43 +207,16 @@ final class SpeechRecognizer {
     /// ignored, and a spoken answer that *contains* the expected text counts as a
     /// full match (the recognizer sometimes tacks on extra words).
     static func similarity(spoken: String, expected: String) -> Double {
-        let a = normalize(spoken)
-        let b = normalize(expected)
+        let a = AnswerCheck.fold(spoken)
+        let b = AnswerCheck.fold(expected)
         guard !a.isEmpty, !b.isEmpty else { return 0 }
         if a == b { return 1 }
         if a.contains(b) || b.contains(a) { return 1 }
-        let distance = levenshtein(Array(a), Array(b))
+        let distance = AnswerCheck.levenshtein(Array(a), Array(b))
         let longest = max(a.count, b.count)
         return 1 - (Double(distance) / Double(longest))
     }
 
     /// A spoken answer is "close enough" at this similarity or above.
     static let passThreshold = 0.8
-
-    private static func normalize(_ text: String) -> String {
-        let folded = text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-        let stripped = folded.unicodeScalars.filter {
-            CharacterSet.alphanumerics.contains($0) || $0 == " "
-        }
-        let collapsed = String(String.UnicodeScalarView(stripped))
-            .split(whereSeparator: { $0 == " " })
-            .joined(separator: " ")
-        return collapsed
-    }
-
-    private static func levenshtein(_ a: [Character], _ b: [Character]) -> Int {
-        if a.isEmpty { return b.count }
-        if b.isEmpty { return a.count }
-        var previous = Array(0...b.count)
-        var current = [Int](repeating: 0, count: b.count + 1)
-        for i in 1...a.count {
-            current[0] = i
-            for j in 1...b.count {
-                let cost = a[i - 1] == b[j - 1] ? 0 : 1
-                current[j] = min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost)
-            }
-            swap(&previous, &current)
-        }
-        return previous[b.count]
-    }
 }

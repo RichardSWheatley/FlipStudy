@@ -44,6 +44,16 @@ enum StudyProgress {
         days.filter { calendar.isDate($0.day, inSameDayAs: now) }.reduce(0) { $0 + $1.reviewCount }
     }
 
+    /// Today's goal and streak in a line, for the end of a session:
+    /// "12 of 20 cards today. 3-day streak."
+    static func todayLine(studyDays: [StudyDay], goal: Int, now: Date = .now, calendar: Calendar = .current) -> String {
+        let reviewed = reviewed(on: now, in: studyDays, calendar: calendar)
+        let streak = currentStreak(studyDays: studyDays.filter { $0.reviewCount > 0 }.map(\.day),
+                                   now: now, calendar: calendar)
+        let goalPart = reviewed >= goal ? "Daily goal met!" : "\(reviewed) of \(goal) cards today."
+        return streak > 0 ? "\(goalPart) \(streak)-day streak." : goalPart
+    }
+
     /// Bring the widget and the daily reminders up to date with the store.
     /// Cheap enough to call whenever studying ends or the app leaves the screen.
     @MainActor

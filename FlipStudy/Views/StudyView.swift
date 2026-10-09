@@ -7,6 +7,7 @@ struct StudyView: View {
     @Query private var settingsList: [AppSettings]
     @Query private var studyDays: [StudyDay]
     let deck: Deck
+    var mode: StudyMode = .flashcards
 
     @State private var queue: [Card] = []
     @State private var index = 0
@@ -29,6 +30,15 @@ struct StudyView: View {
     @State private var lastSpokenScore: Double?
     @State private var lastSpokenText = ""
     @State private var speakError: String?
+
+    // Type It: the typed answer, and its grade once checked.
+    @State private var typed = ""
+    @State private var typedResult: AnswerCheck.Result?
+    @FocusState private var answerFocused: Bool
+
+    // Quiz: this card's choices, and the one picked.
+    @State private var choices: [String] = []
+    @State private var picked: String?
 
     var body: some View {
         NavigationStack {
@@ -60,6 +70,8 @@ struct StudyView: View {
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
+                }
+                if index < queue.count && mode == .flashcards {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             recognizer.stop()
@@ -130,11 +142,7 @@ struct StudyView: View {
 
     /// Today's streak and goal, shown when a session ends.
     private var progressLine: String {
-        let reviewed = StudyProgress.reviewed(on: .now, in: studyDays)
-        let goal = settings?.dailyGoal ?? AppSettings.defaultDailyGoal
-        let streak = StudyProgress.currentStreak(studyDays: studyDays.filter { $0.reviewCount > 0 }.map(\.day))
-        let goalPart = reviewed >= goal ? "Daily goal met!" : "\(reviewed) of \(goal) cards today."
-        return streak > 0 ? "\(goalPart) \(streak)-day streak." : goalPart
+        StudyProgress.todayLine(studyDays: studyDays, goal: settings?.dailyGoal ?? AppSettings.defaultDailyGoal)
     }
 
     /// Add-a-card button shown on the "finished" screens so a new card (with
@@ -149,7 +157,16 @@ struct StudyView: View {
         .buttonStyle(.bordered)
     }
 
+    @ViewBuilder
     private func reviewing(card: Card) -> some View {
+        switch mode {
+        case .typeAnswer: typing(card: card)
+        case .multipleChoice: quiz(card: card)
+        case .flashcards, .match: flipping(card: card)
+        }
+    }
+
+    private func flipping(card: Card) -> some View {
         VStack(spacing: 24) {
             Spacer()
 
@@ -199,6 +216,177 @@ struct StudyView: View {
             }
         }
         .padding()
+    }
+
+    /// Type It: the front, a box for the answer, then the verdict with the
+    /// card flipped so the right answer is always shown.
+    private func typing(card: Card) -> some View {
+        VStack(spacing: 20) {
+            Spacer(minLength: 0)
+            FlipCard(card: card, showingBack: showingBack, height: 220)
+            Spacer(minLength: 0)
+            if let result = typedResult {
+                VStack(spacing: 16) {
+                    typedVerdict(result, card: card)
+                    HStack(spacing: 16) {
+                        if !result.isRight {
+                            // Typed answers can be right in other words; the
+                            // learner gets the last say, as with flipping.
+                            Button {
+                                advance(correct: true)
+                            } label: {
+                                Text("I Was Right")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        answerButton(title: "Next", systemImage: "arrow.right",
+                                     tint: .accentColor) { advance(correct: result.isRight) }
+                    }
+                }
+                .transition(.opacity)
+            } else {
+                VStack(spacing: 12) {
+                    TextField("Type the answer", text: $typed)
+                        .font(.title3)
+                        .padding(14)
+                        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.done)
+                        .focused($answerFocused)
+                        .onSubmit { checkTyped(card: card) }
+                    HStack(spacing: 16) {
+                        Button {
+                            typed = ""
+                            checkTyped(card: card)
+                        } label: {
+                            Text("Show Me")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                        }
+                        .buttonStyle(.bordered)
+                        answerButton(title: "Check", systemImage: "checkmark",
+                                     tint: .accentColor) { checkTyped(card: card) }
+                            .disabled(typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }
+        }
+        .padding()
+        .onAppear { answerFocused = true }
+    }
+
+    private func typedVerdict(_ result: AnswerCheck.Result, card: Card) -> some View {
+        VStack(spacing: 4) {
+            switch result {
+            case .correct:
+                Label("Correct!", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            case .close:
+                Label("Almost — check the spelling", systemImage: "checkmark.circle")
+                    .foregroundStyle(.green)
+            case .wrong:
+                Label(typed.isEmpty ? "Here's the answer" : "Not quite",
+                      systemImage: typed.isEmpty ? "eye" : "xmark.circle.fill")
+                    .foregroundStyle(typed.isEmpty ? Color.secondary : Color.red)
+            }
+            if !typed.isEmpty && result != .correct {
+                Text("You typed: \(typed)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .font(.subheadline.weight(.semibold))
+    }
+
+    private func checkTyped(card: Card) {
+        typed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        answerFocused = false
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
+            typedResult = AnswerCheck.grade(typed: typed, expected: card.back)
+            showingBack = true
+        }
+    }
+
+    /// Quiz: the front and a few backs to choose from. Picking one shows which
+    /// was right straight away; Next moves on.
+    private func quiz(card: Card) -> some View {
+        VStack(spacing: 20) {
+            Spacer(minLength: 0)
+            FlipCard(card: card, showingBack: false, height: 200)
+            Spacer(minLength: 0)
+            VStack(spacing: 10) {
+                ForEach(choices, id: \.self) { choice in
+                    choiceButton(choice, card: card)
+                }
+            }
+            if let picked {
+                answerButton(title: "Next", systemImage: "arrow.right", tint: .accentColor) {
+                    advance(correct: isAnswer(picked, for: card))
+                }
+                .transition(.opacity)
+            }
+        }
+        .padding()
+    }
+
+    private func choiceButton(_ choice: String, card: Card) -> some View {
+        let isRight = isAnswer(choice, for: card)
+        let revealed = picked != nil
+        let state: (tint: Color, icon: String?) = {
+            guard revealed else { return (.accentColor, nil) }
+            if isRight { return (.green, "checkmark.circle.fill") }
+            if choice == picked { return (.red, "xmark.circle.fill") }
+            return (.secondary, nil)
+        }()
+        return Button {
+            guard picked == nil else { return }
+            withAnimation(.easeInOut(duration: 0.2)) { picked = choice }
+        } label: {
+            HStack(spacing: 10) {
+                Text(choice)
+                    .font(.body.weight(.medium))
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.7)
+                Spacer(minLength: 0)
+                if let icon = state.icon {
+                    Image(systemName: icon)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 4)
+        }
+        .buttonStyle(.bordered)
+        .tint(state.tint)
+        .opacity(revealed && !isRight && choice != picked ? 0.5 : 1)
+        .allowsHitTesting(!revealed)
+        .sensoryFeedback(trigger: picked) { _, new in
+            guard new == choice else { return nil }
+            return isRight ? .success : .error
+        }
+    }
+
+    private func isAnswer(_ choice: String, for card: Card) -> Bool {
+        AnswerCheck.fold(choice) == AnswerCheck.fold(card.back)
+    }
+
+    /// Clear the per-card Type It and Quiz state, and deal the next card's
+    /// choices from the whole deck (not just what's due).
+    private func prepareCard() {
+        typed = ""
+        typedResult = nil
+        picked = nil
+        guard mode == .multipleChoice, index < queue.count else { return }
+        var rng = SystemRandomNumberGenerator()
+        choices = QuizBuilder.choices(answer: queue[index].back,
+                                      from: deck.cards.map(\.back), using: &rng)
     }
 
     /// Speaker button that reads the answer aloud in its own language (Italian,
@@ -389,7 +577,9 @@ struct StudyView: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             showingBack = false
             index += 1
+            prepareCard()
         }
+        if mode == .typeAnswer { answerFocused = index < queue.count }
     }
 
     /// Start or stop listening for the spoken answer. Stopping grades what was
@@ -434,12 +624,14 @@ struct StudyView: View {
         index = 0
         showingBack = false
         correctCount = 0
+        prepareCard()
     }
 }
 
 private struct FlipCard: View {
     let card: Card
     let showingBack: Bool
+    var height: CGFloat = 320
 
     var body: some View {
         ZStack {
@@ -451,7 +643,7 @@ private struct FlipCard: View {
         }
         .rotation3DEffect(.degrees(showingBack ? 180 : 0), axis: (x: 0, y: 1, z: 0))
         .frame(maxWidth: .infinity)
-        .frame(height: 320)
+        .frame(height: height)
     }
 
     private func face(text: String, label: String, filled: Bool) -> some View {

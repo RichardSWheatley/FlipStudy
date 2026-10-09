@@ -7,7 +7,8 @@ struct DeckDetailView: View {
 
     @State private var editorCard: Card?
     @State private var showingNewCard = false
-    @State private var showingStudy = false
+    /// The study screen open over the deck, in whichever mode was chosen.
+    @State private var studyMode: StudyMode?
     @State private var showingEditDeck = false
 
     private var sortedCards: [Card] {
@@ -46,15 +47,24 @@ struct DeckDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
             if !deck.cards.isEmpty {
-                Button {
-                    showingStudy = true
-                } label: {
-                    Label("Study", systemImage: "play.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                VStack(spacing: 10) {
+                    Button {
+                        studyMode = .flashcards
+                    } label: {
+                        Label("Study", systemImage: "play.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    HStack(spacing: 10) {
+                        modeButton("Type It", systemImage: "keyboard", mode: .typeAnswer)
+                        modeButton("Quiz", systemImage: "checklist", mode: .multipleChoice)
+                            .disabled(!QuizBuilder.canQuiz(backs: deck.cards.map(\.back)))
+                        modeButton("Match", systemImage: "square.grid.2x2", mode: .match)
+                            .disabled(!QuizBuilder.canMatch(matchPairs))
+                    }
                 }
-                .buttonStyle(.borderedProminent)
                 .padding()
                 .background(.bar)
             }
@@ -93,9 +103,30 @@ struct DeckDetailView: View {
         .sheet(item: $editorCard) { card in
             CardEditorView(deck: deck, card: card)
         }
-        .fullScreenCover(isPresented: $showingStudy) {
-            StudyView(deck: deck)
+        .fullScreenCover(item: $studyMode) { mode in
+            if mode == .match {
+                MatchView(deck: deck)
+            } else {
+                StudyView(deck: deck, mode: mode)
+            }
         }
+    }
+
+    private var matchPairs: [QuizBuilder.MatchPair] {
+        deck.cards.map { .init(id: $0.id, front: $0.front, back: $0.back) }
+    }
+
+    /// Quiz and Match need at least three different cards; they stay greyed
+    /// out until the deck has them.
+    private func modeButton(_ title: String, systemImage: String, mode: StudyMode) -> some View {
+        Button {
+            studyMode = mode
+        } label: {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
     }
 
     private func deleteCards(_ offsets: IndexSet) {
