@@ -7,7 +7,7 @@ import SwiftData
 @Model
 final class AppSettings {
     /// Whether the parent has unlocked the cloud path via the grown-up gate.
-    var cloudAIEnabled: Bool
+    var cloudAIEnabled: Bool = false
 
     /// Raw value of the selected `TranslationProvider`. Apple's on-device engine
     /// is the default; cloud engines require `cloudAIEnabled` and an API key.

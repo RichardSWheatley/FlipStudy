@@ -47,7 +47,7 @@ struct StudyView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if deck.cards.isEmpty {
+                if deck.allCards.isEmpty {
                     ContentUnavailableView(
                         "Nothing to Study",
                         systemImage: "checkmark.circle",
@@ -422,7 +422,7 @@ struct StudyView: View {
         guard mode == .multipleChoice, index < queue.count else { return }
         var rng = SystemRandomNumberGenerator()
         choices = QuizBuilder.choices(answer: queue[index].back,
-                                      from: deck.cards.map(\.back), using: &rng)
+                                      from: deck.allCards.map(\.back), using: &rng)
     }
 
     /// Speaker button that reads the answer aloud in its own language (Italian,
@@ -554,7 +554,7 @@ struct StudyView: View {
     }
 
     private var nextDueMessage: String {
-        guard let next = deck.cards.compactMap(\.nextDue).min() else {
+        guard let next = deck.allCards.compactMap(\.nextDue).min() else {
             return "Nothing is due right now."
         }
         let formatted = next.formatted(.relative(presentation: .named))
@@ -653,7 +653,7 @@ struct StudyView: View {
     private func buildQueue() {
         // Study only cards that are due, unless the user opted to drill the
         // whole deck. Lower Leitner boxes first (those need the most practice).
-        let pool = includeAll ? deck.cards : deck.cards.filter(\.isDue)
+        let pool = includeAll ? deck.allCards : deck.allCards.filter(\.isDue)
         queue = pool.sorted {
             $0.leitnerBox != $1.leitnerBox ? $0.leitnerBox < $1.leitnerBox : $0.front < $1.front
         }

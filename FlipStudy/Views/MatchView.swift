@@ -151,7 +151,7 @@ struct MatchView: View {
     private func newRound() {
         var rng = SystemRandomNumberGenerator()
         let pairs = QuizBuilder.matchRound(
-            from: deck.cards.map { .init(id: $0.id, front: $0.front, back: $0.back) },
+            from: deck.allCards.map { .init(id: $0.id, front: $0.front, back: $0.back) },
             using: &rng
         )
         pairCount = pairs.count

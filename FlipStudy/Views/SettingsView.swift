@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CloudKit
 
 /// App settings. The one gated control is Cloud AI: because FlipStudy is aimed
 /// at kids, turning it on requires a grown-up to pass a simple math check first.
@@ -25,6 +26,7 @@ struct SettingsView: View {
     @State private var parentGate: ParentGateRequest?
     /// iOS has notifications switched off for FlipStudy, so the reminder can't work.
     @State private var notificationsBlocked = false
+    @State private var iCloudStatus: ICloudStatus = .checking
     @State private var apiKey = ""
     /// When true the API key is shown as plain text so a grown-up can verify the
     /// exact characters. A masked SecureField hides paste corruption (truncation,
@@ -178,6 +180,15 @@ struct SettingsView: View {
                          ? "Notifications are off for FlipStudy. Turn them on in the Settings app, then try again."
                          : "A notification at this time tells you how many cards are ready — only on days something is due.")
                 }
+
+                Section {
+                    Label(iCloudStatus.title, systemImage: iCloudStatus.systemImage)
+                } header: {
+                    Text("iCloud")
+                } footer: {
+                    Text(iCloudStatus.footnote)
+                }
+                .task { iCloudStatus = await ICloudStatus.current() }
 
                 Section {
                     if CardEngine.cloudUnlocked(settings) {
@@ -542,6 +553,55 @@ private struct ParentGateView: View {
             answer = ""
             first = Int.random(in: 6...9)
             second = Int.random(in: 6...9)
+        }
+    }
+}
+
+/// Whether decks are reaching iCloud, in words a family can act on.
+private enum ICloudStatus {
+    case checking, syncing, signedOut, restricted, unavailable, deviceOnly
+
+    static func current() async -> ICloudStatus {
+        // Only ask CloudKit when the store actually opened with sync; a build
+        // without the iCloud entitlement can't create the container at all.
+        guard Persistence.isSyncing else { return .deviceOnly }
+        switch try? await CKContainer(identifier: Persistence.cloudContainerID).accountStatus() {
+        case .available: return .syncing
+        case .noAccount: return .signedOut
+        case .restricted: return .restricted
+        default: return .unavailable
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .checking: "Checking iCloud…"
+        case .syncing: "Syncing with iCloud"
+        case .signedOut: "Not signed in to iCloud"
+        case .restricted: "iCloud is restricted on this device"
+        case .unavailable: "iCloud isn't available right now"
+        case .deviceOnly: "Saved on this device only"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .syncing: "checkmark.icloud"
+        case .checking: "icloud"
+        default: "icloud.slash"
+        }
+    }
+
+    var footnote: String {
+        switch self {
+        case .signedOut:
+            "Sign in to iCloud in the Settings app to keep your decks and streak on every iPhone and iPad you use. Until then, everything stays on this device."
+        case .restricted:
+            "Screen Time or a device profile is blocking iCloud, so decks stay on this device."
+        case .deviceOnly:
+            "This copy of FlipStudy can't use iCloud, so decks stay on this device."
+        default:
+            "Your decks, cards and streak sync through your own iCloud account to every iPhone and iPad signed in to it. Only you can see them. Settings stay on each device."
         }
     }
 }

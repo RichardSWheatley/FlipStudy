@@ -29,16 +29,18 @@ enum DeckSource: String, Codable, CaseIterable {
     }
 }
 
+// Every stored property has a default, and `cards` is optional: iCloud sync
+// (CloudKit) refuses models without both. Views read `allCards`.
 @Model
 final class Deck {
-    var id: UUID
-    var title: String
-    var subject: String
-    var createdAt: Date
-    var source: DeckSource
+    var id: UUID = UUID()
+    var title: String = ""
+    var subject: String = ""
+    var createdAt: Date = Date.now
+    var source: DeckSource = DeckSource.manual
 
     @Relationship(deleteRule: .cascade, inverse: \Card.deck)
-    var cards: [Card]
+    var cards: [Card]? = []
 
     init(
         title: String,
@@ -54,7 +56,10 @@ final class Deck {
         self.cards = []
     }
 
+    /// The deck's cards, or none while a synced deck's cards are still arriving.
+    var allCards: [Card] { cards ?? [] }
+
     var dueCount: Int {
-        cards.filter(\.isDue).count
+        allCards.filter(\.isDue).count
     }
 }

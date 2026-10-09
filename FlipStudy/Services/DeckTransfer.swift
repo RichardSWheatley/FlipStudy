@@ -31,7 +31,7 @@ enum DeckTransfer {
         SharedDeck(formatVersion: currentVersion,
                    title: deck.title,
                    subject: deck.subject,
-                   cards: deck.cards.map { SharedCard(front: $0.front, back: $0.back) })
+                   cards: deck.allCards.map { SharedCard(front: $0.front, back: $0.back) })
     }
 
     static func encode(_ snapshot: SharedDeck) throws -> Data {

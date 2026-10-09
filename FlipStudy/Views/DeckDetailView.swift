@@ -12,7 +12,7 @@ struct DeckDetailView: View {
     @State private var showingEditDeck = false
 
     private var sortedCards: [Card] {
-        deck.cards.sorted { $0.leitnerBox != $1.leitnerBox ? $0.leitnerBox < $1.leitnerBox : $0.front < $1.front }
+        deck.allCards.sorted { $0.leitnerBox != $1.leitnerBox ? $0.leitnerBox < $1.leitnerBox : $0.front < $1.front }
     }
 
     /// A temporary `.flipstudy` file for the share sheet. Rebuilt each time the
@@ -23,7 +23,7 @@ struct DeckDetailView: View {
 
     var body: some View {
         List {
-            if deck.cards.isEmpty {
+            if deck.allCards.isEmpty {
                 ContentUnavailableView {
                     Label("No Cards", systemImage: "rectangle.stack.badge.plus")
                 } description: {
@@ -46,7 +46,7 @@ struct DeckDetailView: View {
         .navigationTitle(deck.title)
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
-            if !deck.cards.isEmpty {
+            if !deck.allCards.isEmpty {
                 VStack(spacing: 10) {
                     Button {
                         studyMode = .flashcards
@@ -60,7 +60,7 @@ struct DeckDetailView: View {
                     HStack(spacing: 10) {
                         modeButton("Type It", systemImage: "keyboard", mode: .typeAnswer)
                         modeButton("Quiz", systemImage: "checklist", mode: .multipleChoice)
-                            .disabled(!QuizBuilder.canQuiz(backs: deck.cards.map(\.back)))
+                            .disabled(!QuizBuilder.canQuiz(backs: deck.allCards.map(\.back)))
                         modeButton("Match", systemImage: "square.grid.2x2", mode: .match)
                             .disabled(!QuizBuilder.canMatch(matchPairs))
                     }
@@ -84,7 +84,7 @@ struct DeckDetailView: View {
                     } label: {
                         Label("Edit Deck", systemImage: "pencil")
                     }
-                    if !deck.cards.isEmpty, let shareURL {
+                    if !deck.allCards.isEmpty, let shareURL {
                         ShareLink(item: shareURL) {
                             Label("Share Deck", systemImage: "square.and.arrow.up")
                         }
@@ -113,7 +113,7 @@ struct DeckDetailView: View {
     }
 
     private var matchPairs: [QuizBuilder.MatchPair] {
-        deck.cards.map { .init(id: $0.id, front: $0.front, back: $0.back) }
+        deck.allCards.map { .init(id: $0.id, front: $0.front, back: $0.back) }
     }
 
     /// Quiz and Match need at least three different cards; they stay greyed

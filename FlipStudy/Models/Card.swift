@@ -1,12 +1,14 @@
 import Foundation
 import SwiftData
 
+// Every stored property has a default, and the deck link is optional: iCloud
+// sync (CloudKit) refuses models without both.
 @Model
 final class Card {
-    var id: UUID
-    var front: String
-    var back: String
-    var leitnerBox: Int
+    var id: UUID = UUID()
+    var front: String = ""
+    var back: String = ""
+    var leitnerBox: Int = 1
     var lastReviewed: Date?
     var nextDue: Date?
 

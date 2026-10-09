@@ -234,7 +234,7 @@ private struct DeckRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(deck.title)
                     .font(.headline)
-                let count = deck.cards.count
+                let count = deck.allCards.count
                 Text("^[\(count) card](inflect: true)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

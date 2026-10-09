@@ -8,6 +8,12 @@ struct FlipStudyApp: App {
     @State private var proStore = ProStore()
     /// Hands a family code from a tapped join link to Settings.
     @State private var linkRouter = FamilyLinkRouter()
+    /// Built once: decks sync through iCloud, settings stay on this device.
+    private let container: ModelContainer
+
+    init() {
+        container = Persistence.makeContainer()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -22,6 +28,6 @@ struct FlipStudyApp: App {
                     if let url = activity.webpageURL { linkRouter.handle(url) }
                 }
         }
-        .modelContainer(for: [Deck.self, Card.self, AppSettings.self, StudyDay.self])
+        .modelContainer(container)
     }
 }
